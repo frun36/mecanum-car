@@ -40,15 +40,21 @@ fn main() {
 
     let mut input = String::new();
     let stdin = io::stdin();
+    let mut current_speed = drive::Speed::Medium;
     loop {
         stdin.read_line(&mut input).expect("Couldn't get user input");
         match input.trim() {
-            "fwd" => drive.fwd(0.5),
-            "bwd" => drive.bwd(0.5),
-            "rwd" => drive.rwd(0.5),
-            "lwd" => drive.lwd(0.5),
-            "rrot" => drive.r_rot(0.5),
-            "lrot" => drive.l_rot(0.5),
+            "lo" => current_speed = drive::Speed::Low,
+            "med" => current_speed = drive::Speed::Medium,
+            "hi" => current_speed = drive::Speed::High,
+            "fwd" => drive.fwd(&current_speed),
+            "bwd" => drive.bwd(&current_speed),
+            "rwd" => drive.rwd(&current_speed),
+            "lwd" => drive.lwd(&current_speed),
+            "rrot" => drive.r_rot(&current_speed),
+            "lrot" => drive.l_rot(&current_speed),
+            "rturn" => drive.r_turn(&current_speed),
+            "lturn" => drive.l_turn(&current_speed),
             "q" => break,
             _ => println!("Invalid command"),
         }
