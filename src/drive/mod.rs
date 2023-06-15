@@ -16,6 +16,19 @@ fn get_speed(speed: &Speed) -> f64 {
     }
 }
 
+pub enum Direction {
+    N,
+    NE,
+    E,
+    SE,
+    S,
+    SW,
+    W,
+    NW,
+    R,
+    L,
+}
+
 pub struct Drive {
     motors: [motor::Motor; 4],
     pwm_frequency: f64,
@@ -34,50 +47,31 @@ impl Drive {
         }
     }
 
-    pub fn fwd(&mut self, speed: &Speed) {
-        let speed = get_speed(speed);
-        for m in self.motors.iter_mut() {
-            m.enable_fwd(self.pwm_frequency, speed);
+    fn enable_motors(&mut self, motor_speeds: &[f64]) {
+        for i in 0..4 {
+            if motor_speeds[i] > 0. {
+                self.motors[i].enable_fwd(self.pwm_frequency, motor_speeds[i]);
+            } else if motor_speeds[i] < 0. {
+                self.motors[i].enable_bwd(self.pwm_frequency, -motor_speeds[i]);
+            }
         }
     }
 
-    pub fn bwd(&mut self, speed: &Speed) {
+    pub fn move_robot(&mut self, direction: &Direction, speed: &Speed) {
         let speed = get_speed(speed);
-        for m in self.motors.iter_mut() {
-            m.enable_bwd(self.pwm_frequency, speed);
-        }
-    }
-
-    pub fn rwd(&mut self, speed: &Speed) {
-        let speed = get_speed(speed);
-        self.motors[0].enable_bwd(self.pwm_frequency, speed);
-        self.motors[1].enable_fwd(self.pwm_frequency, speed);
-        self.motors[2].enable_bwd(self.pwm_frequency, speed);
-        self.motors[3].enable_fwd(self.pwm_frequency, speed);
-    }
-
-    pub fn lwd(&mut self, speed: &Speed) {
-        let speed = get_speed(speed);
-        self.motors[0].enable_fwd(self.pwm_frequency, speed);
-        self.motors[1].enable_bwd(self.pwm_frequency, speed);
-        self.motors[2].enable_fwd(self.pwm_frequency, speed);
-        self.motors[3].enable_bwd(self.pwm_frequency, speed);
-    }
-
-    pub fn l_rot(&mut self, speed: &Speed) {
-        let speed = get_speed(speed);
-        self.motors[0].enable_bwd(self.pwm_frequency, speed);
-        self.motors[1].enable_fwd(self.pwm_frequency, speed);
-        self.motors[2].enable_fwd(self.pwm_frequency, speed);
-        self.motors[3].enable_bwd(self.pwm_frequency, speed);
-    }
-
-    pub fn r_rot(&mut self, speed: &Speed) {
-        let speed = get_speed(speed);
-        self.motors[0].enable_fwd(self.pwm_frequency, speed);
-        self.motors[1].enable_bwd(self.pwm_frequency, speed);
-        self.motors[2].enable_bwd(self.pwm_frequency, speed);
-        self.motors[3].enable_fwd(self.pwm_frequency, speed);
+        let motor_speeds = match *direction {
+            Direction::N => [speed, speed, speed, speed],
+            Direction::NE => [0., speed, 0., speed],
+            Direction::E => [-speed, speed, -speed, speed],
+            Direction::SE => [-speed, 0., -speed, 0.],
+            Direction::S => [-speed, -speed, -speed, -speed],
+            Direction::SW => [0., -speed, 0., -speed],
+            Direction::W => [speed, -speed, speed, -speed],
+            Direction::NW => [speed, 0., speed, 0.],
+            Direction::R => [speed, -speed, -speed, speed],
+            Direction::L => [-speed, speed, speed, -speed],
+        };
+        self.enable_motors(&motor_speeds);
     }
 
     pub fn l_turn(&mut self, speed: &Speed) {

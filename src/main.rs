@@ -1,6 +1,6 @@
+use std::io;
 use std::thread;
 use std::time::Duration;
-use std::io;
 
 use rppal::gpio::Gpio;
 
@@ -35,30 +35,38 @@ fn main() {
             (MOTOR2_FWD, MOTOR2_BWD, MOTOR2_PWM),
             (MOTOR3_FWD, MOTOR3_BWD, MOTOR3_PWM),
         ],
-        MOTOR_PWM_FREQUENCY
+        MOTOR_PWM_FREQUENCY,
     );
 
     let mut input = String::new();
     let stdin = io::stdin();
     let mut current_speed = drive::Speed::Medium;
     loop {
-        stdin.read_line(&mut input).expect("Couldn't get user input");
+        stdin
+            .read_line(&mut input)
+            .expect("Couldn't get user input");
         match input.trim() {
             "lo" => current_speed = drive::Speed::Low,
             "med" => current_speed = drive::Speed::Medium,
             "hi" => current_speed = drive::Speed::High,
-            "fwd" => drive.fwd(&current_speed),
-            "bwd" => drive.bwd(&current_speed),
-            "rwd" => drive.rwd(&current_speed),
-            "lwd" => drive.lwd(&current_speed),
-            "rrot" => drive.r_rot(&current_speed),
-            "lrot" => drive.l_rot(&current_speed),
+
+            "n" => drive.move_robot(&drive::Direction::N, &current_speed),
+            "ne" => drive.move_robot(&drive::Direction::NE, &current_speed),
+            "se" => drive.move_robot(&drive::Direction::SE, &current_speed),
+            "e" => drive.move_robot(&drive::Direction::E, &current_speed),
+            "s" => drive.move_robot(&drive::Direction::S, &current_speed),
+            "sw" => drive.move_robot(&drive::Direction::SW, &current_speed),
+            "w" => drive.move_robot(&drive::Direction::W, &current_speed),
+            "nw" => drive.move_robot(&drive::Direction::NW, &current_speed),
+
+            "r" => drive.move_robot(&drive::Direction::R, &current_speed),
+            "l" => drive.move_robot(&drive::Direction::L, &current_speed),
             "rturn" => drive.r_turn(&current_speed),
             "lturn" => drive.l_turn(&current_speed),
             "q" => break,
             _ => println!("Invalid command"),
         }
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(100));
         drive.stop();
         input.clear();
     }
