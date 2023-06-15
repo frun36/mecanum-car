@@ -46,6 +46,20 @@ impl Drive {
         self.motors[3].enable_bwd(self.pwm_frequency, speed);
     }
 
+    pub fn l_rot(&mut self, speed: f64) {
+        self.motors[0].enable_bwd(self.pwm_frequency, speed);
+        self.motors[1].enable_fwd(self.pwm_frequency, speed);
+        self.motors[2].enable_fwd(self.pwm_frequency, speed);
+        self.motors[3].enable_bwd(self.pwm_frequency, speed);
+    }
+
+    pub fn r_rot(&mut self, speed: f64) {
+        self.motors[0].enable_fwd(self.pwm_frequency, speed);
+        self.motors[1].enable_bwd(self.pwm_frequency, speed);
+        self.motors[2].enable_bwd(self.pwm_frequency, speed);
+        self.motors[3].enable_fwd(self.pwm_frequency, speed);
+    }
+
     pub fn stop(&mut self) {
         for m in self.motors.iter_mut() {
             m.stop();

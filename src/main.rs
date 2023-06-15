@@ -1,5 +1,6 @@
 use std::thread;
 use std::time::Duration;
+use std::io;
 
 use rppal::gpio::Gpio;
 
@@ -36,13 +37,23 @@ fn main() {
         ],
         MOTOR_PWM_FREQUENCY
     );
-    drive.fwd(0.5);
-    thread::sleep(Duration::from_millis(1000));
-    drive.lwd(0.5);
-    thread::sleep(Duration::from_millis(1000));
-    drive.bwd(0.5);
-    thread::sleep(Duration::from_millis(1000));
-    drive.rwd(0.5);
-    thread::sleep(Duration::from_millis(1000));
-    drive.stop();
+
+    let mut input = String::new();
+    let stdin = io::stdin();
+    loop {
+        stdin.read_line(&mut input).expect("Couldn't get user input");
+        match input.trim() {
+            "fwd" => drive.fwd(0.5),
+            "bwd" => drive.bwd(0.5),
+            "rwd" => drive.rwd(0.5),
+            "lwd" => drive.lwd(0.5),
+            "rrot" => drive.r_rot(0.5),
+            "lrot" => drive.l_rot(0.5),
+            "q" => break,
+            _ => println!("Invalid command"),
+        }
+        thread::sleep(Duration::from_millis(1000));
+        drive.stop();
+        input.clear();
+    }
 }
