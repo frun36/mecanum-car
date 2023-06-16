@@ -4,7 +4,14 @@ use std::time::Duration;
 
 use rppal::gpio::Gpio;
 
+use drive::Drive;
+use drive::Speed;
+use drive::Direction;
+
+use hc_sr04::HcSr04;
+
 mod drive;
+mod hc_sr04;
 
 const MOTOR0_FWD: u8 = 4;
 const MOTOR0_BWD: u8 = 17;
@@ -24,6 +31,9 @@ const MOTOR3_PWM: u8 = 6;
 
 const MOTOR_PWM_FREQUENCY: f64 = 100.0;
 
+const DISTANCE_SENSOR_TRIG: u8 = 19;
+const DISTANCE_SENSOR_ECHO: u8 = 16;
+
 fn main() {
     let gpio = Gpio::new().unwrap();
 
@@ -38,6 +48,17 @@ fn main() {
         MOTOR_PWM_FREQUENCY,
     );
 
+    let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
+
+    loop {
+        println!("{}", distance_sensor.measure_distance());
+        thread::sleep(Duration::from_millis(500));
+    }
+
+    remote_control(&mut drive);
+}
+
+fn remote_control(drive: &mut Drive) {
     let mut input = String::new();
     let stdin = io::stdin();
     let mut current_speed = drive::Speed::Medium;
@@ -46,21 +67,21 @@ fn main() {
             .read_line(&mut input)
             .expect("Couldn't get user input");
         match input.trim() {
-            "lo" => current_speed = drive::Speed::Low,
-            "med" => current_speed = drive::Speed::Medium,
-            "hi" => current_speed = drive::Speed::High,
+            "lo" => current_speed = Speed::Low,
+            "med" => current_speed = Speed::Medium,
+            "hi" => current_speed = Speed::High,
 
-            "n" => drive.move_robot(&drive::Direction::N, &current_speed),
-            "ne" => drive.move_robot(&drive::Direction::NE, &current_speed),
-            "se" => drive.move_robot(&drive::Direction::SE, &current_speed),
-            "e" => drive.move_robot(&drive::Direction::E, &current_speed),
-            "s" => drive.move_robot(&drive::Direction::S, &current_speed),
-            "sw" => drive.move_robot(&drive::Direction::SW, &current_speed),
-            "w" => drive.move_robot(&drive::Direction::W, &current_speed),
-            "nw" => drive.move_robot(&drive::Direction::NW, &current_speed),
+            "n" => drive.move_robot(&Direction::N, &current_speed),
+            "ne" => drive.move_robot(&Direction::NE, &current_speed),
+            "se" => drive.move_robot(&Direction::SE, &current_speed),
+            "e" => drive.move_robot(&Direction::E, &current_speed),
+            "s" => drive.move_robot(&Direction::S, &current_speed),
+            "sw" => drive.move_robot(&Direction::SW, &current_speed),
+            "w" => drive.move_robot(&Direction::W, &current_speed),
+            "nw" => drive.move_robot(&Direction::NW, &current_speed),
 
-            "r" => drive.move_robot(&drive::Direction::R, &current_speed),
-            "l" => drive.move_robot(&drive::Direction::L, &current_speed),
+            "r" => drive.move_robot(&Direction::R, &current_speed),
+            "l" => drive.move_robot(&Direction::L, &current_speed),
             "rturn" => drive.r_turn(&current_speed),
             "lturn" => drive.l_turn(&current_speed),
             "q" => break,

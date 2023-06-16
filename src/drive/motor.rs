@@ -13,15 +13,15 @@ impl Motor {
             fwd_pin: gpio
                 .get(fwd_pin_number)
                 .expect("Error: Couldn't get gpio")
-                .into_output(),
+                .into_output_low(),
             bwd_pin: gpio
                 .get(bwd_pin_number)
                 .expect("Error: Couldn't get gpio")
-                .into_output(),
+                .into_output_low(),
             pwm_pin: gpio
                 .get(pwm_pin_number)
                 .expect("Error: Couldn't get gpio")
-                .into_output(),
+                .into_output_low(),
         }
     }
 
