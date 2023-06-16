@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use rppal::gpio::Gpio;
 
+use drive::Direction;
 use drive::Drive;
 use drive::Speed;
-use drive::Direction;
 
 use hc_sr04::HcSr04;
 
@@ -50,12 +50,41 @@ fn main() {
 
     let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
 
-    loop {
-        println!("{}", distance_sensor.measure_distance());
+    // loop {
+    //     println!("{}", distance_sensor.measure_distance());
+    //     thread::sleep(Duration::from_millis(500));
+    // }
+
+    self_drive(&mut drive, &mut distance_sensor);
+
+    // remote_control(&mut drive);
+}
+
+fn self_drive(drive: &mut Drive, sensor: &mut HcSr04) {
+    let mut sensor_reading = sensor.measure_distance();
+    let initial_sensor_reading = sensor_reading;
+
+    thread::sleep(Duration::from_millis(3000));
+
+    for _ in 0..5 {
+        drive.move_robot(&Direction::N, &Speed::Low);
+        while sensor_reading > 0.1 {
+            println!("{}", sensor_reading);
+            sensor_reading = sensor.measure_distance();
+        }
+        drive.stop();
+
+        thread::sleep(Duration::from_millis(500));
+
+        drive.move_robot(&Direction::S, &Speed::Low);
+        while sensor_reading < initial_sensor_reading {
+            println!("{}", sensor_reading);
+            sensor_reading = sensor.measure_distance();
+        }
+        drive.stop();
+
         thread::sleep(Duration::from_millis(500));
     }
-
-    remote_control(&mut drive);
 }
 
 fn remote_control(drive: &mut Drive) {
