@@ -1,9 +1,4 @@
-use std::{
-    io,
-    thread,
-    time::Duration,
-    sync::Mutex,
-};
+use std::{io, sync::Mutex, thread, time::Duration};
 
 use actix_web::{
     get, http::StatusCode, middleware::Logger, post, web, App, Error, HttpResponse, HttpServer,
@@ -56,10 +51,10 @@ async fn main() -> Result<(), io::Error> {
     );
 
     let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
-    
+
     let drive_mutex = Mutex::new(drive);
     let drive_data = web::Data::new(drive_mutex);
-    
+
     HttpServer::new(move || {
         App::new()
             .route("/", web::get().to(index))
@@ -82,7 +77,7 @@ async fn drive_handler(drive_data: web::Data<Mutex<Drive>>) -> HttpResponse {
     drive_mutex.move_robot(&Direction::N, &Speed::Low);
     thread::sleep(Duration::from_millis(500));
     drive_mutex.stop();
-    HttpResponse::Ok().body("I've moved")
+    HttpResponse::Ok().body("I've moved\n")
 }
 
 fn self_drive(drive: &mut Drive, sensor: &mut HcSr04) {

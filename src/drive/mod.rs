@@ -38,23 +38,23 @@ impl Drive {
     pub fn new(gpio: &Gpio, motor_pins: [(u8, u8, u8); 4], pwm_frequency: f64) -> Self {
         Self {
             motors: [
-                motor::Motor::new(&gpio, motor_pins[0].0, motor_pins[0].1, motor_pins[0].2),
-                motor::Motor::new(&gpio, motor_pins[1].0, motor_pins[1].1, motor_pins[1].2),
-                motor::Motor::new(&gpio, motor_pins[2].0, motor_pins[2].1, motor_pins[2].2),
-                motor::Motor::new(&gpio, motor_pins[3].0, motor_pins[3].1, motor_pins[3].2),
+                motor::Motor::new(gpio, motor_pins[0].0, motor_pins[0].1, motor_pins[0].2),
+                motor::Motor::new(gpio, motor_pins[1].0, motor_pins[1].1, motor_pins[1].2),
+                motor::Motor::new(gpio, motor_pins[2].0, motor_pins[2].1, motor_pins[2].2),
+                motor::Motor::new(gpio, motor_pins[3].0, motor_pins[3].1, motor_pins[3].2),
             ],
             pwm_frequency,
         }
     }
 
     fn enable_motors(&mut self, motor_speeds: &[f64]) {
-        for i in 0..4 {
+        (0..4).for_each(|i| {
             if motor_speeds[i] > 0. {
                 self.motors[i].enable_fwd(self.pwm_frequency, motor_speeds[i]);
             } else if motor_speeds[i] < 0. {
                 self.motors[i].enable_bwd(self.pwm_frequency, -motor_speeds[i]);
             }
-        }
+        });
     }
 
     pub fn move_robot(&mut self, direction: &Direction, speed: &Speed) {
