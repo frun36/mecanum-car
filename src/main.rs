@@ -1,12 +1,18 @@
-use std::io;
-use std::thread;
-use std::time::Duration;
+use std::{
+    io,
+    thread,
+    time::Duration,
+    sync::Mutex,
+};
+
+use actix_web::{
+    get, http::StatusCode, middleware::Logger, post, web, App, Error, HttpResponse, HttpServer,
+    Responder,
+};
 
 use rppal::gpio::Gpio;
 
-use drive::Direction;
-use drive::Drive;
-use drive::Speed;
+use drive::{Direction, Drive, Speed};
 
 use hc_sr04::HcSr04;
 
@@ -34,7 +40,8 @@ const MOTOR_PWM_FREQUENCY: f64 = 100.0;
 const DISTANCE_SENSOR_TRIG: u8 = 19;
 const DISTANCE_SENSOR_ECHO: u8 = 16;
 
-fn main() {
+#[actix_web::main]
+async fn main() -> Result<(), io::Error> {
     let gpio = Gpio::new().unwrap();
 
     let mut drive = drive::Drive::new(
@@ -49,15 +56,33 @@ fn main() {
     );
 
     let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
+    
+    let drive_mutex = Mutex::new(drive);
+    let drive_data = web::Data::new(drive_mutex);
+    
+    HttpServer::new(move || {
+        App::new()
+            .route("/", web::get().to(index))
+            .app_data(drive_data.clone())
+            .route("/move", web::post().to(drive_handler))
+    })
+    .bind(("0.0.0.0", 7878))?
+    .run()
+    .await
+}
 
-    // loop {
-    //     println!("{}", distance_sensor.measure_distance());
-    //     thread::sleep(Duration::from_millis(500));
-    // }
+async fn index() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../templates/index.html"))
+}
 
-    self_drive(&mut drive, &mut distance_sensor);
-
-    // remote_control(&mut drive);
+async fn drive_handler(drive_data: web::Data<Mutex<Drive>>) -> HttpResponse {
+    let mut drive_mutex = drive_data.lock().unwrap();
+    drive_mutex.move_robot(&Direction::N, &Speed::Low);
+    thread::sleep(Duration::from_millis(500));
+    drive_mutex.stop();
+    HttpResponse::Ok().body("I've moved")
 }
 
 fn self_drive(drive: &mut Drive, sensor: &mut HcSr04) {
