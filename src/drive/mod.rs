@@ -2,6 +2,8 @@ use rppal::gpio::Gpio;
 
 mod motor;
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Speed {
     Low,
     Medium,
@@ -16,17 +18,19 @@ fn get_speed(speed: &Speed) -> f64 {
     }
 }
 
-pub enum Direction {
-    N,
-    NE,
-    E,
-    SE,
-    S,
-    SW,
-    W,
-    NW,
-    R,
-    L,
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Motion {
+    Forward,
+    ForwardRight,
+    Rightward,
+    BackwardRight,
+    Backward,
+    BackwardLeft,
+    Leftward,
+    ForwardLeft,
+    RightRot,
+    LeftRot,
 }
 
 pub struct Drive {
@@ -57,19 +61,19 @@ impl Drive {
         });
     }
 
-    pub fn move_robot(&mut self, direction: &Direction, speed: &Speed) {
+    pub fn move_robot(&mut self, direction: &Motion, speed: &Speed) {
         let speed = get_speed(speed);
         let motor_speeds = match *direction {
-            Direction::N => [speed, speed, speed, speed],
-            Direction::NE => [0., speed, 0., speed],
-            Direction::E => [-speed, speed, -speed, speed],
-            Direction::SE => [-speed, 0., -speed, 0.],
-            Direction::S => [-speed, -speed, -speed, -speed],
-            Direction::SW => [0., -speed, 0., -speed],
-            Direction::W => [speed, -speed, speed, -speed],
-            Direction::NW => [speed, 0., speed, 0.],
-            Direction::R => [speed, -speed, -speed, speed],
-            Direction::L => [-speed, speed, speed, -speed],
+            Motion::Forward => [speed, speed, speed, speed],
+            Motion::ForwardRight => [0., speed, 0., speed],
+            Motion::Rightward => [-speed, speed, -speed, speed],
+            Motion::BackwardRight => [-speed, 0., -speed, 0.],
+            Motion::Backward => [-speed, -speed, -speed, -speed],
+            Motion::BackwardLeft => [0., -speed, 0., -speed],
+            Motion::Leftward => [speed, -speed, speed, -speed],
+            Motion::ForwardLeft => [speed, 0., speed, 0.],
+            Motion::RightRot => [speed, -speed, -speed, speed],
+            Motion::LeftRot => [-speed, speed, speed, -speed],
         };
         self.enable_motors(&motor_speeds);
     }
