@@ -23,14 +23,15 @@ fn get_speed(speed: &Speed) -> f64 {
 pub enum Motion {
     Forward,
     ForwardRight,
-    Rightward,
+    Right,
     BackwardRight,
     Backward,
     BackwardLeft,
-    Leftward,
+    Left,
     ForwardLeft,
     RightRot,
     LeftRot,
+    Stop,
 }
 
 pub struct Drive {
@@ -57,6 +58,8 @@ impl Drive {
                 self.motors[i].enable_fwd(self.pwm_frequency, motor_speeds[i]);
             } else if motor_speeds[i] < 0. {
                 self.motors[i].enable_bwd(self.pwm_frequency, -motor_speeds[i]);
+            } else {
+                self.motors[i].stop();
             }
         });
     }
@@ -66,14 +69,15 @@ impl Drive {
         let motor_speeds = match *direction {
             Motion::Forward => [speed, speed, speed, speed],
             Motion::ForwardRight => [0., speed, 0., speed],
-            Motion::Rightward => [-speed, speed, -speed, speed],
+            Motion::Right => [-speed, speed, -speed, speed],
             Motion::BackwardRight => [-speed, 0., -speed, 0.],
             Motion::Backward => [-speed, -speed, -speed, -speed],
             Motion::BackwardLeft => [0., -speed, 0., -speed],
-            Motion::Leftward => [speed, -speed, speed, -speed],
+            Motion::Left => [speed, -speed, speed, -speed],
             Motion::ForwardLeft => [speed, 0., speed, 0.],
             Motion::RightRot => [speed, -speed, -speed, speed],
             Motion::LeftRot => [-speed, speed, speed, -speed],
+            Motion::Stop => [0., 0., 0., 0.],
         };
         self.enable_motors(&motor_speeds);
     }

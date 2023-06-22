@@ -76,13 +76,10 @@ async fn index() -> HttpResponse {
         .body(include_str!("../templates/index.html"))
 }
 
-#[post("/move")]
+#[post("/drive")]
 async fn drive_handler(drive_data: web::Data<Mutex<Drive>>, web::Query(params): web::Query<DriveParams>) -> HttpResponse {
     let mut drive_mutex = drive_data.lock().unwrap();
-
     drive_mutex.move_robot(&params.direction, &params.speed);
-    thread::sleep(Duration::from_millis(500));
-    drive_mutex.stop();
     HttpResponse::Ok().body("I've moved\n")
 }
 
