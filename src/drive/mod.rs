@@ -64,9 +64,9 @@ impl Drive {
         });
     }
 
-    pub fn move_robot(&mut self, direction: &Motion, speed: &Speed) {
+    pub fn move_robot(&mut self, motion: &Motion, speed: &Speed) {
         let speed = get_speed(speed);
-        let motor_speeds = match *direction {
+        let motor_speeds = match *motion {
             Motion::Forward => [speed, speed, speed, speed],
             Motion::ForwardRight => [0., speed, 0., speed],
             Motion::Right => [-speed, speed, -speed, speed],
