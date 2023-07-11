@@ -1,4 +1,4 @@
-use rppal::gpio::{Error, Gpio};
+use rppal::gpio::{Gpio, Error};
 
 mod motor;
 
@@ -40,11 +40,7 @@ pub struct Drive {
 }
 
 impl Drive {
-    pub fn new(
-        gpio: &Gpio,
-        motor_pins: [(u8, u8, u8); 4],
-        pwm_frequency: f64,
-    ) -> Result<Self, Error> {
+    pub fn new(gpio: &Gpio, motor_pins: [(u8, u8, u8); 4], pwm_frequency: f64) -> Result<Self, Error> {
         Ok(Self {
             motors: [
                 motor::Motor::new(gpio, motor_pins[0].0, motor_pins[0].1, motor_pins[0].2)?,
@@ -57,7 +53,7 @@ impl Drive {
     }
 
     fn enable_motors(&mut self, motor_speeds: &[f64]) -> Result<(), Error> {
-        for i in 0..4 {
+        for i in 0..4  {
             if motor_speeds[i] > 0. {
                 self.motors[i].enable_fwd(self.pwm_frequency, motor_speeds[i])?;
             } else if motor_speeds[i] < 0. {
