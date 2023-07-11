@@ -37,7 +37,7 @@ const DISTANCE_SENSOR_TRIG: u8 = 19;
 const DISTANCE_SENSOR_ECHO: u8 = 16;
 
 async fn index() -> impl Responder {
-    NamedFile::open_async("./index.html").await.unwrap()
+    NamedFile::open_async("app/index.html").await.unwrap()
 }
 
 /// Websocket handshake, start `WebSocket` actor
