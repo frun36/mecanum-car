@@ -2,6 +2,8 @@ use rppal::gpio::{Gpio, Error};
 
 mod motor;
 
+
+/// Provides simple API for speed control
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Speed {
@@ -10,6 +12,7 @@ pub enum Speed {
     High,
 }
 
+/// Converts `Speed` values to pwm frequencies
 fn get_speed(speed: &Speed) -> f64 {
     match *speed {
         Speed::Low => 0.3,
@@ -18,6 +21,7 @@ fn get_speed(speed: &Speed) -> f64 {
     }
 }
 
+/// Possible robot motions
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Motion {
@@ -34,12 +38,23 @@ pub enum Motion {
     Stop,
 }
 
+/// Allows control of the motion of a 4-wheeled mecanum robot<br>
+/// Wheel layout:<br>
+/// \\------/<br>
+/// \\-3--2-/<br>
+/// \\------/<br>
+/// <br>
+/// <br>
+/// /------\\<br>
+/// /-0--1-\\<br>
+/// /------\\<br>
 pub struct Drive {
     motors: [motor::Motor; 4],
     pwm_frequency: f64,
 }
 
 impl Drive {
+    /// Creates new `Drive` instance
     pub fn new(gpio: &Gpio, motor_pins: [(u8, u8, u8); 4], pwm_frequency: f64) -> Result<Self, Error> {
         Ok(Self {
             motors: [
@@ -52,6 +67,7 @@ impl Drive {
         })
     }
 
+    /// Enables all motors, speeds specified in `motor_speeds` (positive: forward, negative: backward)
     fn enable_motors(&mut self, motor_speeds: &[f64]) -> Result<(), Error> {
         for i in 0..4  {
             if motor_speeds[i] > 0. {
@@ -65,6 +81,7 @@ impl Drive {
         Ok(())
     }
 
+    /// Starts specified `motion` with specified `speed`
     pub fn move_robot(&mut self, motion: &Motion, speed: &Speed) -> Result<(), Error> {
         let speed = get_speed(speed);
         let motor_speeds = match *motion {
