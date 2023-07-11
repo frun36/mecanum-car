@@ -1,14 +1,19 @@
 use std::{io, sync::Mutex};
 
-use actix_web::{web, App, HttpServer};
+use actix_files::NamedFile;
+use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web_actors::ws;
 
 use rppal::gpio::Gpio;
 
+use drive::Drive;
 use hc_sr04::HcSr04;
+use server::WebSocket;
 
 mod api;
 mod drive;
 mod hc_sr04;
+mod server;
 
 const MOTOR0_FWD: u8 = 4;
 const MOTOR0_BWD: u8 = 17;
@@ -31,11 +36,20 @@ const MOTOR_PWM_FREQUENCY: f64 = 100.0;
 const DISTANCE_SENSOR_TRIG: u8 = 19;
 const DISTANCE_SENSOR_ECHO: u8 = 16;
 
+async fn index() -> impl Responder {
+    NamedFile::open_async("./index.html").await.unwrap()
+}
+
+/// Websocket handshake, start `WebSocket` actor
+async fn echo_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, actix_web::Error> {
+    ws::start(WebSocket::new(), &req, stream)
+}
+
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
     let gpio = Gpio::new().unwrap();
 
-    let drive = drive::Drive::new(
+    let drive = Drive::new(
         &gpio,
         [
             (MOTOR0_FWD, MOTOR0_BWD, MOTOR0_PWM),
@@ -59,8 +73,12 @@ async fn main() -> Result<(), io::Error> {
         App::new()
             .app_data(drive_data.clone())
             .app_data(distance_sensor_data.clone())
-            .configure(api::init_routes)
+            // .configure(api::init_routes)
+            // WebSocket UI
+            .service(web::resource("/").to(index))
+            .service(web::resource("/ws").route(web::get().to(echo_ws)))
     })
+    .workers(2)
     .bind(("0.0.0.0", 7878))?
     .run()
     .await
