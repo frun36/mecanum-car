@@ -2,7 +2,7 @@ use rppal::gpio::Error;
 use rppal::gpio::Gpio;
 use rppal::gpio::OutputPin;
 
-/// Allows control over an H bridge-connected DC motor 
+/// Allows control over an H bridge-connected DC motor
 pub struct Motor {
     fwd_pin: OutputPin,
     bwd_pin: OutputPin,
@@ -29,7 +29,8 @@ impl Motor {
         self.bwd_pin.set_low();
         self.enable_pin.set_high();
         self.fwd_pin.set_high();
-        self.enable_pin.set_pwm_frequency(pwm_frequency, duty_cycle)?;
+        self.enable_pin
+            .set_pwm_frequency(pwm_frequency, duty_cycle)?;
         Ok(())
     }
 
@@ -38,7 +39,8 @@ impl Motor {
         self.fwd_pin.set_low();
         self.enable_pin.set_high();
         self.bwd_pin.set_high();
-        self.enable_pin.set_pwm_frequency(pwm_frequency, duty_cycle)?;
+        self.enable_pin
+            .set_pwm_frequency(pwm_frequency, duty_cycle)?;
         Ok(())
     }
 

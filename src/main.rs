@@ -31,7 +31,6 @@ const MOTOR_PWM_FREQUENCY: f64 = 100.0;
 const DISTANCE_SENSOR_TRIG: u8 = 19;
 const DISTANCE_SENSOR_ECHO: u8 = 16;
 
-
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
     let gpio = Gpio::new().unwrap();
@@ -45,7 +44,8 @@ async fn main() -> Result<(), io::Error> {
             (MOTOR3_FWD, MOTOR3_BWD, MOTOR3_PWM),
         ],
         MOTOR_PWM_FREQUENCY,
-    ).unwrap();
+    )
+    .unwrap();
 
     let distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
 
