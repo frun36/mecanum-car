@@ -3,8 +3,6 @@ use rppal::gpio::{Error, Gpio};
 mod motor;
 
 /// Provides simple API for speed control
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum Speed {
     Low,
     Medium,
@@ -21,8 +19,6 @@ fn get_speed(speed: &Speed) -> f64 {
 }
 
 /// Possible robot motions
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum Motion {
     Forward,
     ForwardRight,

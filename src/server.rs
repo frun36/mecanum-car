@@ -1,5 +1,4 @@
 use std::sync::Mutex;
-use std::thread;
 use std::time::{Duration, Instant};
 
 use actix::prelude::*;

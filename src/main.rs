@@ -1,8 +1,11 @@
-use std::{io::{self, Read}, sync::Mutex, path::PathBuf};
+use std::{io, sync::Mutex};
 
 use actix_files as fs;
 use actix_files::NamedFile;
-use actix_web::{web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    web::{self, Data},
+    App, HttpRequest, HttpResponse, HttpServer, Responder,
+};
 use actix_web_actors::ws;
 
 use rppal::gpio::Gpio;
@@ -41,7 +44,11 @@ async fn index() -> impl Responder {
 }
 
 /// Websocket handshake, start `WebSocket` actor
-async fn ws_connect(req: HttpRequest, stream: web::Payload, drive_data: Data<Mutex<Drive>>) -> Result<HttpResponse, actix_web::Error> {
+async fn ws_connect(
+    req: HttpRequest,
+    stream: web::Payload,
+    drive_data: Data<Mutex<Drive>>,
+) -> Result<HttpResponse, actix_web::Error> {
     ws::start(WebSocket::new(drive_data), &req, stream)
 }
 
@@ -60,6 +67,7 @@ async fn main() -> Result<(), io::Error> {
         MOTOR_PWM_FREQUENCY,
     )
     .unwrap();
+    drive.list_motors();
 
     let distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
 

@@ -1,31 +1,48 @@
-.button-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-    justify-items: stretch center;
-    grid-auto-flow: row;
-    justify-content: stretch center;
+.move-button-container {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
 }
 
-.move-button {
-    width: 200px;
-    height: 200px;
+.move-button-grid {
+    display: grid;
+    aspect-ratio: 5 / 3;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+.move-button,
+.left-rotate-button,
+.right-rotate-button {
+    transition: 0.25s;
+    background-color: #212121;
+    color: #FBC02D;
+    font-family: "Roboto";
+    font-size: larger;
+    border: none;
+}
+
+.move-button:hover,
+.left-rotate-button:hover,
+.right-rotate-button:hover {
+    transition: 0.25s;
+    background-color: #424242;
+}
+
+.move-button:active,
+.left-rotate-button:active,
+.right-rotate-button:active {
+    transition: 0.5s;
+    background-color: #FBC02D;
+    color: #FFF9C4;
 }
 
 .left-rotate-button {
     grid-column: 1;
     grid-row: 1 / span 3;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
 }
 
 .right-rotate-button {
     grid-column: 5;
     grid-row: 1 / span 3;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
 }
