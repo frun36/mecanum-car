@@ -6,6 +6,7 @@ use actix_web::web::Data;
 use actix_web_actors::ws;
 
 use crate::drive::{Drive, Motion, Speed};
+use crate::hc_sr04::HcSr04;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -15,14 +16,16 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct WebSocket {
     hb: Instant,
-    drive: Data<Mutex<Drive>>,
+    drive_data: Data<Mutex<Drive>>,
+    hc_sr04_data: Data<Mutex<HcSr04>>,
 }
 
 impl WebSocket {
-    pub fn new(drive: Data<Mutex<Drive>>) -> Self {
+    pub fn new(drive_data: Data<Mutex<Drive>>, hc_sr04_data: Data<Mutex<HcSr04>>) -> Self {
         Self {
             hb: Instant::now(),
-            drive,
+            drive_data,
+            hc_sr04_data,
         }
     }
 
@@ -71,7 +74,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
             }
             // Text message
             Ok(ws::Message::Text(text)) => {
-                motion_handler(&self.drive, &text);
+                motion_handler(&self.drive_data, &self.hc_sr04_data, &text);
                 ctx.text(text)
             }
             // Binary message
@@ -86,8 +89,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     }
 }
 
-fn motion_handler(drive_data: &Data<Mutex<Drive>>, message: &str) {
+fn motion_handler(
+    drive_data: &Data<Mutex<Drive>>,
+    hc_sr04_data: &Data<Mutex<HcSr04>>,
+    message: &str,
+) {
     let mut drive = drive_data.lock().unwrap();
+    let mut hc_sr04 = hc_sr04_data.lock().unwrap();
     let mut motion = &Motion::Stop;
     let speed = &Speed::Low;
     match message {
@@ -123,6 +131,10 @@ fn motion_handler(drive_data: &Data<Mutex<Drive>>, message: &str) {
         }
         "stop" => {
             motion = &Motion::Stop;
+        }
+        "measureDistance" => {
+            println!("About to measure distance...");
+            println!("{}", hc_sr04.measure_distance());
         }
         _ => {
             println!("Invalid message")

@@ -48,8 +48,9 @@ async fn ws_connect(
     req: HttpRequest,
     stream: web::Payload,
     drive_data: Data<Mutex<Drive>>,
+    hc_sr04_data: Data<Mutex<HcSr04>>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    ws::start(WebSocket::new(drive_data), &req, stream)
+    ws::start(WebSocket::new(drive_data, hc_sr04_data), &req, stream)
 }
 
 #[actix_web::main]

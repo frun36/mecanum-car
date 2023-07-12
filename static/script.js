@@ -16,3 +16,5 @@ document.getElementById("stop").addEventListener("click", () => socket.send("sto
 
 document.getElementById("dateLabel").innerHTML = "Date: " + Date();
 document.getElementById("refreshDate").addEventListener("click", () => document.getElementById("dateLabel").innerHTML = "Date: " + Date());
+
+document.getElementById("measureDistance").addEventListener("click", () => socket.send("measureDistance"));
