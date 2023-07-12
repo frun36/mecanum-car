@@ -11,7 +11,6 @@ use drive::Drive;
 use hc_sr04::HcSr04;
 use server::WebSocket;
 
-mod api;
 mod drive;
 mod hc_sr04;
 mod server;
@@ -74,7 +73,6 @@ async fn main() -> Result<(), io::Error> {
         App::new()
             .app_data(drive_data.clone())
             .app_data(distance_sensor_data.clone())
-            // .configure(api::init_routes)
             // WebSocket UI
             .service(web::resource("/").to(index))
             .service(fs::Files::new("/static", "./static").show_files_listing())

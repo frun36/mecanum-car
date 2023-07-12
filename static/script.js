@@ -1,17 +1,3 @@
-// Function to send a request to the API
-async function sendRequest(direction, speed) {
-    try {
-        const response = await fetch(`/drive?direction=${direction}&speed=medium`, { method: 'POST' });
-        if (response.ok) {
-            console.log(`Driving ${direction}!`);
-        } else {
-            console.error("Error sending request!");
-        }
-    } catch (error) {
-        console.error("Error sending request:", error);
-    }
-}
-
 const socket = new WebSocket('ws://192.168.1.17:7878/ws')
 
 // Add event listeners to the buttons
