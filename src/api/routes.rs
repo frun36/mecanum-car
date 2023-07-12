@@ -9,7 +9,7 @@ use actix_web::{get, post, web, HttpResponse};
 async fn index() -> HttpResponse {
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(include_str!("../../app/index.html"))
+        .body(include_str!("../../static/index.html"))
 }
 
 #[post("/drive")]
