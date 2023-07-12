@@ -91,34 +91,34 @@ fn motion_handler(drive_data: &Data<Mutex<Drive>>, message: &str) {
     let mut motion = &Motion::Stop;
     let speed = &Speed::Low;
     match message {
-        "move_forwardleft" => {
+        "move_forwardLeft" => {
             motion = &Motion::ForwardLeft;
         }
         "move_forward" => {
             motion = &Motion::Forward;
         }
-        "move_forwardright" => {
+        "move_forwardRight" => {
             motion = &Motion::ForwardRight;
         }
         "move_right" => {
             motion = &Motion::Right;
         }
-        "move_backwardright" => {
+        "move_backwardRight" => {
             motion = &Motion::BackwardRight;
         }
         "move_backward" => {
             motion = &Motion::Backward;
         }
-        "move_backwardleft" => {
+        "move_backwardLeft" => {
             motion = &Motion::BackwardLeft;
         }
         "move_left" => {
             motion = &Motion::Left;
         }
-        "move_leftrot" => {
+        "move_leftRot" => {
             motion = &Motion::LeftRot;
         }
-        "move_rightrot" => {
+        "move_rightRot" => {
             motion = &Motion::RightRot;
         }
         "stop" => {
