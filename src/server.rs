@@ -1,11 +1,12 @@
 use std::sync::Mutex;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use actix::prelude::*;
 use actix_web::web::Data;
 use actix_web_actors::ws;
 
-use crate::drive::Drive;
+use crate::drive::{Drive, Motion, Speed};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -71,8 +72,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
             }
             // Text message
             Ok(ws::Message::Text(text)) => {
-                let drive = self.drive.lock().unwrap();
-                drive.list_motors();
+                motion_handler(&self.drive, &text);
                 ctx.text(text)
             }
             // Binary message
@@ -85,4 +85,49 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
             _ => ctx.stop(),
         }
     }
+}
+
+fn motion_handler(drive_data: &Data<Mutex<Drive>>, message: &str) {
+    let mut drive = drive_data.lock().unwrap();
+    let mut motion = &Motion::Stop;
+    let speed = &Speed::Low;
+    match message {
+        "move_forwardleft" => {
+            motion = &Motion::ForwardLeft;
+        }
+        "move_forward" => {
+            motion = &Motion::Forward;
+        }
+        "move_forwardright" => {
+            motion = &Motion::ForwardRight;
+        }
+        "move_right" => {
+            motion = &Motion::Right;
+        }
+        "move_backwardright" => {
+            motion = &Motion::BackwardRight;
+        }
+        "move_backward" => {
+            motion = &Motion::Backward;
+        }
+        "move_backwardleft" => {
+            motion = &Motion::BackwardLeft;
+        }
+        "move_left" => {
+            motion = &Motion::Left;
+        }
+        "move_leftrot" => {
+            motion = &Motion::LeftRot;
+        }
+        "move_rightrot" => {
+            motion = &Motion::RightRot;
+        }
+        "stop" => {
+            motion = &Motion::Stop;
+        }
+        _ => {
+            println!("Invalid message")
+        }
+    };
+    drive.move_robot(motion, speed).unwrap();
 }
