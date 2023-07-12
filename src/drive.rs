@@ -103,4 +103,13 @@ impl Drive {
         self.enable_motors(&motor_speeds)?;
         Ok(())
     }
+
+    /// Prints all motor pins
+    pub fn list_motors(&self) {
+        self.motors.iter().enumerate().for_each(|(i, m)| {
+            println!("Motor {}:", i);
+            m.print_pins();
+            println!();
+        });
+    }
 }

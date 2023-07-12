@@ -50,4 +50,11 @@ impl Motor {
         self.fwd_pin.set_low();
         self.bwd_pin.set_low();
     }
+
+    /// Prints pins used by motor
+    pub fn print_pins(&self) {
+        println!("Enable pin: {}", self.enable_pin.pin());
+        println!("Forward pin: {}", self.fwd_pin.pin());
+        println!("Backward pin: {}", self.bwd_pin.pin());
+    }
 }

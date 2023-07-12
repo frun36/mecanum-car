@@ -2,7 +2,7 @@ use std::{io::{self, Read}, sync::Mutex, path::PathBuf};
 
 use actix_files as fs;
 use actix_files::NamedFile;
-use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{web::{self, Data}, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web_actors::ws;
 
 use rppal::gpio::Gpio;
@@ -42,8 +42,8 @@ async fn index() -> impl Responder {
 }
 
 /// Websocket handshake, start `WebSocket` actor
-async fn echo_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, actix_web::Error> {
-    ws::start(WebSocket::new(), &req, stream)
+async fn ws_connect(req: HttpRequest, stream: web::Payload, drive_data: Data<Mutex<Drive>>) -> Result<HttpResponse, actix_web::Error> {
+    ws::start(WebSocket::new(drive_data), &req, stream)
 }
 
 #[actix_web::main]
@@ -65,10 +65,10 @@ async fn main() -> Result<(), io::Error> {
     let distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
 
     let drive_mutex = Mutex::new(drive);
-    let drive_data = web::Data::new(drive_mutex);
+    let drive_data = Data::new(drive_mutex);
 
     let distance_sensor_mutex = Mutex::new(distance_sensor);
-    let distance_sensor_data = web::Data::new(distance_sensor_mutex);
+    let distance_sensor_data = Data::new(distance_sensor_mutex);
 
     HttpServer::new(move || {
         App::new()
@@ -78,7 +78,7 @@ async fn main() -> Result<(), io::Error> {
             // WebSocket UI
             .service(web::resource("/").to(index))
             .service(fs::Files::new("/static", "./static").show_files_listing())
-            .service(web::resource("/ws").route(web::get().to(echo_ws)))
+            .service(web::resource("/ws").route(web::get().to(ws_connect)))
     })
     .workers(2)
     .bind(("0.0.0.0", 7878))?
