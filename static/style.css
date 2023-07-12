@@ -20,6 +20,7 @@
     font-family: "Roboto";
     font-size: larger;
     border: none;
+    user-select: none;
 }
 
 .move-button:hover,
