@@ -36,8 +36,8 @@ const MOTOR3_PWM: u8 = 6;
 
 const MOTOR_PWM_FREQUENCY: f64 = 100.0;
 
-const DISTANCE_SENSOR_TRIG: u8 = 19;
-const DISTANCE_SENSOR_ECHO: u8 = 16;
+const DISTANCE_SENSOR_TRIG: u8 = 26;
+const DISTANCE_SENSOR_ECHO: u8 = 20;
 
 async fn index() -> impl Responder {
     NamedFile::open_async("static/index.html").await.unwrap()

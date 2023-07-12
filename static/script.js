@@ -1,4 +1,33 @@
-const socket = new WebSocket('ws://192.168.1.17:7878/ws')
+// Manage socket connection
+const connectionStatus = document.getElementById("connectionStatus");
+const reconnectButton = document.getElementById("reconnectButton");
+
+let socket;
+
+function connectWebSocket() {
+    socket = new WebSocket('ws://192.168.1.17:7878/ws');
+
+    socket.onopen = function () {
+        connectionStatus.innerHTML = 'Connection status: connected';
+        reconnectButton.disabled = true;
+    };
+
+    socket.onclose = function () {
+        connectionStatus.innerHTML = 'Connection status: disconnected';
+        reconnectButton.disabled = false;
+    };
+
+    socket.onerror = function () {
+        connectionStatus.innerHTML = 'Connection status: error';
+        reconnectButton.disabled = false;
+    };
+}
+
+reconnectButton.addEventListener('click', function () {
+    connectWebSocket();
+});
+
+connectWebSocket();
 
 buttons = ["forwardLeft", "forward", "forwardRight", "right", "backwardRight", "backward", "backwardLeft", "left", "leftRot", "rightRot"]
 
