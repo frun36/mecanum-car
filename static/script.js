@@ -61,6 +61,7 @@ function addMoveButtonEvent(id, motion) {
 
     button.addEventListener("mousedown", () => socket.send(messageJson));
     button.addEventListener("mouseup", () => socket.send(stopMessageJson));
+    button.addEventListener("mouseout", () => socket.send(stopMessageJson));
 
     button.addEventListener("touchstart", () => socket.send(messageJson));
     button.addEventListener("touchend", () => socket.send(stopMessageJson));
