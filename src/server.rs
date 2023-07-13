@@ -5,6 +5,8 @@ use actix::prelude::*;
 use actix_web::web::Data;
 use actix_web_actors::ws;
 
+use serde::Deserialize;
+
 use crate::drive::{Drive, Motion, Speed};
 use crate::hc_sr04::HcSr04;
 
@@ -18,6 +20,13 @@ pub struct WebSocket {
     hb: Instant,
     drive_data: Data<Mutex<Drive>>,
     hc_sr04_data: Data<Mutex<HcSr04>>,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "variant")]
+enum SocketMessages {
+    Move { motion: Motion, speed: Speed },
+    MeasureDistance,
 }
 
 impl WebSocket {
@@ -74,7 +83,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
             }
             // Text message
             Ok(ws::Message::Text(text)) => {
-                motion_handler(&self.drive_data, &self.hc_sr04_data, &text);
+                let message: SocketMessages =
+                    serde_json::from_str(&text).expect("Failed to deserialize message");
+                match message {
+                    SocketMessages::Move { motion, speed } => motion_handler(&self.drive_data, &motion, &speed),
+                    SocketMessages::MeasureDistance => println!("Far far away..."),
+                }
                 ctx.text(text)
             }
             // Binary message
@@ -89,56 +103,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     }
 }
 
-fn motion_handler(
-    drive_data: &Data<Mutex<Drive>>,
-    hc_sr04_data: &Data<Mutex<HcSr04>>,
-    message: &str,
-) {
+fn motion_handler(drive_data: &Data<Mutex<Drive>>, motion: &Motion, speed: &Speed) {
     let mut drive = drive_data.lock().unwrap();
-    let mut hc_sr04 = hc_sr04_data.lock().unwrap();
-    let mut motion = &Motion::Stop;
-    let speed = &Speed::Low;
-    match message {
-        "move_forwardLeft" => {
-            motion = &Motion::ForwardLeft;
-        }
-        "move_forward" => {
-            motion = &Motion::Forward;
-        }
-        "move_forwardRight" => {
-            motion = &Motion::ForwardRight;
-        }
-        "move_right" => {
-            motion = &Motion::Right;
-        }
-        "move_backwardRight" => {
-            motion = &Motion::BackwardRight;
-        }
-        "move_backward" => {
-            motion = &Motion::Backward;
-        }
-        "move_backwardLeft" => {
-            motion = &Motion::BackwardLeft;
-        }
-        "move_left" => {
-            motion = &Motion::Left;
-        }
-        "move_leftRot" => {
-            motion = &Motion::LeftRot;
-        }
-        "move_rightRot" => {
-            motion = &Motion::RightRot;
-        }
-        "stop" => {
-            motion = &Motion::Stop;
-        }
-        "measureDistance" => {
-            println!("About to measure distance...");
-            println!("{}", hc_sr04.measure_distance());
-        }
-        _ => {
-            println!("Invalid message")
-        }
-    };
     drive.move_robot(motion, speed).unwrap();
 }
