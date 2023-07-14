@@ -59,10 +59,12 @@ function addMoveButtonEvent(id, motion) {
     }
     const stopMessageJson = JSON.stringify(stopMessage);
 
+    // Desktop
     button.addEventListener("mousedown", () => socket.send(messageJson));
     button.addEventListener("mouseup", () => socket.send(stopMessageJson));
     button.addEventListener("mouseout", () => socket.send(stopMessageJson));
 
+    // Mobile
     button.addEventListener("touchstart", () => socket.send(messageJson));
     button.addEventListener("touchend", () => socket.send(stopMessageJson));
     console.log("Added move button event " + motion + " for button " + id);
