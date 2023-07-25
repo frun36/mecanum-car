@@ -70,7 +70,10 @@ async fn main() -> Result<(), io::Error> {
     .unwrap();
     drive.list_motors();
 
-    let distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
+    let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
+
+    // For some reason without this line the distance measurement doesn't work
+    println!("{}", distance_sensor.measure_distance());
 
     let drive_mutex = Mutex::new(drive);
     let drive_data = Data::new(drive_mutex);
