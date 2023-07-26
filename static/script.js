@@ -67,6 +67,7 @@ function addMoveButtonEvent(id, motion) {
     // Mobile
     button.addEventListener("touchstart", () => socket.send(messageJson));
     button.addEventListener("touchend", () => socket.send(stopMessageJson));
+    
     console.log("Added move button event " + motion + " for button " + id);
 }
 
@@ -83,3 +84,7 @@ document.getElementById("measure-distance").addEventListener("click", () => sock
 
 // Start the socket connection
 connectWebSocket();
+
+socket.addEventListener("message", (event) => {
+    console.log("Message from server:", event.data);
+});

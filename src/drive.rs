@@ -5,7 +5,7 @@ use serde::Deserialize;
 mod motor;
 
 /// Provides simple API for speed control
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub enum Speed {
     Low,
     Medium,
@@ -22,7 +22,7 @@ fn get_speed(speed: &Speed) -> f64 {
 }
 
 /// Supported robot motions
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub enum Motion {
     Forward,
     ForwardRight,

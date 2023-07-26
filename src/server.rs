@@ -85,11 +85,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
             Ok(ws::Message::Text(text)) => {
                 let message: SocketMessages =
                     serde_json::from_str(&text).expect("Failed to deserialize message");
-                match message {
-                    SocketMessages::Move { motion, speed } => motion_handler(&self.drive_data, &motion, &speed),
+                let response = match message {
+                    SocketMessages::Move { motion, speed } => {
+                        motion_handler(&self.drive_data, &motion, &speed)
+                    }
                     SocketMessages::MeasureDistance => measure_distance_handler(&self.hc_sr04_data),
-                }
-                ctx.text(text)
+                };
+                ctx.text(response)
             }
             // Binary message
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
@@ -103,12 +105,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     }
 }
 
-fn motion_handler(drive_data: &Data<Mutex<Drive>>, motion: &Motion, speed: &Speed) {
+fn motion_handler(drive_data: &Data<Mutex<Drive>>, motion: &Motion, speed: &Speed) -> String {
     let mut drive = drive_data.lock().unwrap();
     drive.move_robot(motion, speed).unwrap();
+    format!("I'm moving {:?} with {:?} speed", motion, speed)
 }
 
-fn measure_distance_handler(hc_sr04_data: &Data<Mutex<HcSr04>>) {
+fn measure_distance_handler(hc_sr04_data: &Data<Mutex<HcSr04>>) -> String {
     let mut sensor = hc_sr04_data.lock().unwrap();
-    println!("Distance: {}", sensor.measure_distance());
+    format!("Measured distance: {}", sensor.measure_distance())
 }
