@@ -11,7 +11,7 @@ pub struct Calibrator<'a> {
     min_duty_cycle: f64,
     max_duty_cycle: f64,
     step: f64,
-    measurements_per_repetition: u32,
+    measurements_per_repetition: usize,
     repetitions: u16,
 }
 
@@ -22,7 +22,7 @@ impl<'a> Calibrator<'a> {
         min_duty_cycle: f64,
         max_duty_cycle: f64,
         step: f64,
-        measurements_per_repetition: u32,
+        measurements_per_repetition: usize,
         repetitions: u16,
     ) -> Self {
         Self {
@@ -70,11 +70,12 @@ impl<'a> Calibrator<'a> {
         // Measurements
         let start_time = Instant::now();
         self.drive.move_robot_pwm_speed(motion, duty_cycle).unwrap();
-        for _ in 0..self.measurements_per_repetition {
+        for i in 0..self.measurements_per_repetition {
             measurements.push((
                 start_time.elapsed(),
                 self.distance_sensor.measure_distance(),
             ));
+            println!("{} {:?} {}", i, measurements[i].0, measurements[i].1);
             // println!("{:?} {:?}", elapsed, self.measurement_duration);
         }
         self.drive

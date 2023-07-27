@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::drive::{Drive, Motion, Speed};
 use crate::hc_sr04::HcSr04;
+use crate::movement_calibration::Calibrator;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -29,6 +30,7 @@ pub struct WebSocket {
 enum SocketMessages {
     Move { motion: Motion, speed: Speed },
     MeasureDistance,
+    CalibrateMovement,
 }
 
 impl WebSocket {
@@ -90,6 +92,22 @@ impl WebSocket {
 
         ctx.spawn(wrap_future(fut));
     }
+
+    fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
+        let drive = self.drive_data.clone();
+        let distance_sensor = self.hc_sr04_data.clone();
+        let fut = async move {
+            task::spawn_blocking(move || {
+                let mut drive = drive.lock().unwrap();
+                let mut distance_sensor = distance_sensor.lock().unwrap();
+                let mut cal = Calibrator::new(&mut drive, &mut distance_sensor, 0.4, 0.5, 0.1, 300, 2);
+                
+                cal.calibrate();
+            }).await.unwrap();
+        };
+        
+        ctx.spawn(wrap_future(fut));
+    }
 }
 
 impl Actor for WebSocket {
@@ -126,6 +144,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                     }
                     SocketMessages::MeasureDistance => {
                         self.measure_distance_handler(ctx);
+                    }
+                    SocketMessages::CalibrateMovement => {
+                        self.calibrate_distance_handler(ctx);
                     }
                 };
             }
