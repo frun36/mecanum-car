@@ -67,7 +67,7 @@ function addMoveButtonEvent(id, motion) {
     // Mobile
     button.addEventListener("touchstart", () => socket.send(messageJson));
     button.addEventListener("touchend", () => socket.send(stopMessageJson));
-    
+
     console.log("Added move button event " + motion + " for button " + id);
 }
 
@@ -77,15 +77,21 @@ buttons = ["forward-left", "forward", "forward-right", "right", "backward-right"
 // Add event listeners to the buttons
 buttons.forEach(id => addMoveButtonEvent(id, snakeToPascal(id)));
 
-document.getElementById("date-label").innerHTML = "Date: " + Date();
-document.getElementById("refresh-date").addEventListener("click", () => document.getElementById("date-label").innerHTML = "Date: " + Date());
-
 document.getElementById("measure-distance").addEventListener("click", () => socket.send(JSON.stringify({ variant: "MeasureDistance" })));
 
 // Start the socket connection
 connectWebSocket();
 
 socket.addEventListener("message", (msg) => {
-    console.log(msg.data);
+    // console.log(msg.data);
     msg = JSON.parse(msg.data);
+    switch (msg.variant) {
+        case "Move":
+            console.log(msg.description);
+            break;
+        case "MeasureDistance":
+            console.log(msg.measurement);
+            document.getElementById("distance-label").innerHTML = msg.measurement + " m";
+            break;
+    }
 });

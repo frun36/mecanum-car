@@ -5,7 +5,8 @@ h1 {
     justify-content: center;
 }
 
-.connection-manager {
+.connection-manager,
+.distance-measurement {
     display: flex;
     justify-content: flex-end;
     font-family: 'Courier New', Courier, monospace;
