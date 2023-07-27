@@ -72,15 +72,17 @@ impl Drive {
 
     /// Enables all motors, speeds specified in `motor_speeds` (positive: forward, negative: backward)
     fn enable_motors(&mut self, motor_speeds: &[f64]) -> Result<(), Error> {
-        for i in 0..4 {
-            if motor_speeds[i] > 0. {
-                self.motors[i].enable_fwd(self.pwm_frequency, motor_speeds[i])?;
-            } else if motor_speeds[i] < 0. {
-                self.motors[i].enable_bwd(self.pwm_frequency, -motor_speeds[i])?;
+        motor_speeds.iter().enumerate().try_for_each(|(i, duty_cycle)| -> Result<(), Error> {
+            let duty_cycle = *duty_cycle;
+            if duty_cycle > 0. {
+                self.motors[i].enable_fwd(self.pwm_frequency, duty_cycle)?;
+            } else if duty_cycle < 0. {
+                self.motors[i].enable_bwd(self.pwm_frequency, -duty_cycle)?;
             } else {
                 self.motors[i].stop();
             }
-        }
+            Ok(())
+        })?;
         Ok(())
     }
 
