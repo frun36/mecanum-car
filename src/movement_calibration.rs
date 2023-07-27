@@ -1,6 +1,8 @@
 use crate::drive::{Drive, Motion};
 use crate::hc_sr04::HcSr04;
 
+use std::fs::File;
+use std::io::Write;
 use std::time::{Duration, Instant};
 
 pub struct Calibrator<'a> {
@@ -9,7 +11,7 @@ pub struct Calibrator<'a> {
     min_duty_cycle: f64,
     max_duty_cycle: f64,
     step: f64,
-    measurement_duration: Duration,
+    measurements_per_repetition: u32,
     repetitions: u16,
 }
 
@@ -20,7 +22,7 @@ impl<'a> Calibrator<'a> {
         min_duty_cycle: f64,
         max_duty_cycle: f64,
         step: f64,
-        measurement_duration: Duration,
+        measurements_per_repetition: u32,
         repetitions: u16,
     ) -> Self {
         Self {
@@ -29,29 +31,33 @@ impl<'a> Calibrator<'a> {
             min_duty_cycle,
             max_duty_cycle,
             step,
-            measurement_duration,
+            measurements_per_repetition,
             repetitions,
         }
     }
 
     pub fn calibrate(&mut self) {
-        for _ in 0..self.repetitions {
-            let mut duty_cycle = self.min_duty_cycle;
-            while duty_cycle <= self.max_duty_cycle {
-                println!("{}", duty_cycle);
+        let mut duty_cycle = self.min_duty_cycle;
+        while duty_cycle <= self.max_duty_cycle {
+            for i in 0..self.repetitions {
+                let mut f = File::create(format!("measurements/{}_{}.csv", duty_cycle, i)).unwrap();
                 let fwd = self.single_calibration(&Motion::Forward, duty_cycle);
                 fwd.into_iter().for_each(|(dur, d)| {
-                    println!("{} {}", dur.as_millis(), d);
+                    writeln!(f, "{},{}", dur.as_millis(), d).unwrap();
                 });
 
-                println!("{}", -duty_cycle);
+                std::thread::sleep(Duration::from_millis(1000));
+
+                let mut f =
+                    File::create(format!("measurements/{}_{}.csv", -duty_cycle, i)).unwrap();
                 let bwd = self.single_calibration(&Motion::Backward, duty_cycle);
                 bwd.into_iter().for_each(|(dur, d)| {
-                    println!("{} {}", dur.as_millis(), d);
+                    writeln!(f, "{},{}", dur.as_millis(), d).unwrap();
                 });
 
-                duty_cycle += self.step;
+                std::thread::sleep(Duration::from_millis(1000));
             }
+            duty_cycle += self.step;
         }
     }
 
@@ -63,14 +69,17 @@ impl<'a> Calibrator<'a> {
 
         // Measurements
         let start_time = Instant::now();
-        let mut elapsed = start_time.elapsed();
         self.drive.move_robot_pwm_speed(motion, duty_cycle).unwrap();
-        while elapsed < self.measurement_duration {
-            elapsed = start_time.elapsed();
-            measurements.push((elapsed, self.distance_sensor.measure_distance()));
+        for _ in 0..self.measurements_per_repetition {
+            measurements.push((
+                start_time.elapsed(),
+                self.distance_sensor.measure_distance(),
+            ));
             // println!("{:?} {:?}", elapsed, self.measurement_duration);
         }
-        self.drive.move_robot_pwm_speed(&Motion::Stop, duty_cycle).unwrap();
+        self.drive
+            .move_robot_pwm_speed(&Motion::Stop, duty_cycle)
+            .unwrap();
 
         measurements
     }

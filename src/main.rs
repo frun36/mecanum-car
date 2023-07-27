@@ -78,15 +78,7 @@ async fn main() -> Result<(), io::Error> {
     println!("{}", distance_sensor.measure_distance());
 
     // test
-    let mut cal = Calibrator::new(
-        &mut drive,
-        &mut distance_sensor,
-        0.4,
-        0.4,
-        0.1,
-        Duration::from_millis(1000),
-        1,
-    );
+    let mut cal = Calibrator::new(&mut drive, &mut distance_sensor, 0.4, 0.6, 0.1, 1000, 3);
 
     cal.calibrate();
 
