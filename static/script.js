@@ -42,19 +42,6 @@ const snakeToPascal = str =>
             .replace('_', '')
     );
 
-function clearEventListeners(element) {
-    // Get all registered event listeners for the element
-    const events = getEventListeners(element);
-
-    // Loop through the events and remove each event listener
-    for (const eventName in events) {
-        const listeners = events[eventName];
-        listeners.forEach(listener => {
-            element.removeEventListener(eventName, listener.listener);
-        });
-    }
-}
-
 function addMoveButtonEvent(id, motion) {
     const button = document.getElementById(id);
 
@@ -71,8 +58,6 @@ function addMoveButtonEvent(id, motion) {
         speed: "Low",
     }
     const stopMessageJson = JSON.stringify(stopMessage);
-
-    clearEventListeners(button);
 
     // Desktop
     button.addEventListener("mousedown", () => socket.send(messageJson));
