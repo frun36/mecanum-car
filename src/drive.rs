@@ -89,23 +89,29 @@ impl Drive {
         Ok(())
     }
 
-    /// Starts specified `motion` with specified `speed`
-    pub fn move_robot(&mut self, motion: &Motion, speed: &Speed) -> Result<(), Error> {
-        let speed = get_speed(speed);
+    /// Starts specified `motion` with specified PWM `duty_cycle`
+    pub fn move_robot_pwm_speed(&mut self, motion: &Motion, duty_cycle: f64) -> Result<(), Error> {
         let motor_speeds = match *motion {
-            Motion::Forward => [speed, speed, speed, speed],
-            Motion::ForwardRight => [0., speed, 0., speed],
-            Motion::Right => [-speed, speed, -speed, speed],
-            Motion::BackwardRight => [-speed, 0., -speed, 0.],
-            Motion::Backward => [-speed, -speed, -speed, -speed],
-            Motion::BackwardLeft => [0., -speed, 0., -speed],
-            Motion::Left => [speed, -speed, speed, -speed],
-            Motion::ForwardLeft => [speed, 0., speed, 0.],
-            Motion::RightRot => [speed, -speed, -speed, speed],
-            Motion::LeftRot => [-speed, speed, speed, -speed],
+            Motion::Forward => [duty_cycle, duty_cycle, duty_cycle, duty_cycle],
+            Motion::ForwardRight => [0., duty_cycle, 0., duty_cycle],
+            Motion::Right => [-duty_cycle, duty_cycle, -duty_cycle, duty_cycle],
+            Motion::BackwardRight => [-duty_cycle, 0., -duty_cycle, 0.],
+            Motion::Backward => [-duty_cycle, -duty_cycle, -duty_cycle, -duty_cycle],
+            Motion::BackwardLeft => [0., -duty_cycle, 0., -duty_cycle],
+            Motion::Left => [duty_cycle, -duty_cycle, duty_cycle, -duty_cycle],
+            Motion::ForwardLeft => [duty_cycle, 0., duty_cycle, 0.],
+            Motion::RightRot => [duty_cycle, -duty_cycle, -duty_cycle, duty_cycle],
+            Motion::LeftRot => [-duty_cycle, duty_cycle, duty_cycle, -duty_cycle],
             Motion::Stop => [0., 0., 0., 0.],
         };
         self.enable_motors(&motor_speeds)?;
+        Ok(())
+    }
+
+    /// Starts specified `motion` with specified `speed`
+    pub fn move_robot(&mut self, motion: &Motion, speed: &Speed) -> Result<(), Error> {
+        let duty_cycle = get_speed(speed);
+        self.move_robot_pwm_speed(motion, duty_cycle)?;
         Ok(())
     }
 
