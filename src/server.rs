@@ -1,7 +1,9 @@
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use actix::fut::wrap_future;
 use actix::prelude::*;
+use actix_web::rt::task;
 use actix_web::web::Data;
 use actix_web_actors::ws;
 
@@ -55,6 +57,33 @@ impl WebSocket {
             ctx.ping(b"");
         });
     }
+
+    fn motion_handler(
+        &mut self,
+        motion: &Motion,
+        speed: &Speed,
+        ctx: &mut <WebSocket as Actor>::Context,
+    ) {
+        let mut drive = self.drive_data.lock().unwrap();
+        drive.move_robot(motion, speed).unwrap();
+        ctx.text(format!("I'm moving {:?} with {:?} speed", motion, speed));
+    }
+
+    fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
+        let sensor = self.hc_sr04_data.clone();
+        let actor_addr = ctx.address();
+
+        let fut = async move {
+            let result = task::spawn_blocking(move || {
+                let mut sensor = sensor.lock().unwrap();
+                sensor.measure_distance()
+            }).await.unwrap();
+            
+            actor_addr.do_send(MeasurementResult(result));
+        };
+
+        ctx.spawn(wrap_future(fut));
+    }
 }
 
 impl Actor for WebSocket {
@@ -85,13 +114,14 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
             Ok(ws::Message::Text(text)) => {
                 let message: SocketMessages =
                     serde_json::from_str(&text).expect("Failed to deserialize message");
-                let response = match message {
+                match message {
                     SocketMessages::Move { motion, speed } => {
-                        motion_handler(&self.drive_data, &motion, &speed)
+                        self.motion_handler(&motion, &speed, ctx)
                     }
-                    SocketMessages::MeasureDistance => measure_distance_handler(&self.hc_sr04_data),
+                    SocketMessages::MeasureDistance => {
+                        self.measure_distance_handler(ctx);
+                    }
                 };
-                ctx.text(response)
             }
             // Binary message
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
@@ -105,13 +135,20 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     }
 }
 
-fn motion_handler(drive_data: &Data<Mutex<Drive>>, motion: &Motion, speed: &Speed) -> String {
-    let mut drive = drive_data.lock().unwrap();
-    drive.move_robot(motion, speed).unwrap();
-    format!("I'm moving {:?} with {:?} speed", motion, speed)
+struct MeasurementResult(f32);
+
+impl Message for MeasurementResult {
+    type Result = ();
 }
 
-fn measure_distance_handler(hc_sr04_data: &Data<Mutex<HcSr04>>) -> String {
-    let mut sensor = hc_sr04_data.lock().unwrap();
-    format!("Measured distance: {}", sensor.measure_distance())
+impl Handler<MeasurementResult> for WebSocket {
+    type Result = ();
+
+    fn handle(&mut self, msg: MeasurementResult, ctx: &mut Self::Context) {
+        // Handle the measurement result here
+        let result = msg.0;
+        let response = format!("Measured distance: {}", result);
+        // Send the response back to the WebSocket client using _ctx
+        ctx.text(response);
+    }
 }
