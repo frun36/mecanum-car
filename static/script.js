@@ -85,6 +85,7 @@ document.getElementById("measure-distance").addEventListener("click", () => sock
 // Start the socket connection
 connectWebSocket();
 
-socket.addEventListener("message", (event) => {
-    console.log("Message from server:", event.data);
+socket.addEventListener("message", (msg) => {
+    console.log(msg.data);
+    msg = JSON.parse(msg.data);
 });

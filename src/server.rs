@@ -7,7 +7,7 @@ use actix_web::rt::task;
 use actix_web::web::Data;
 use actix_web_actors::ws;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::drive::{Drive, Motion, Speed};
 use crate::hc_sr04::HcSr04;
@@ -66,7 +66,11 @@ impl WebSocket {
     ) {
         let mut drive = self.drive_data.lock().unwrap();
         drive.move_robot(motion, speed).unwrap();
-        ctx.text(format!("I'm moving {:?} with {:?} speed", motion, speed));
+        let response = serde_json::to_string(&SocketResponses::Move {
+            description: format!("{:?} with {:?} speed", motion, speed),
+        })
+        .unwrap();
+        ctx.text(response);
     }
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -149,8 +153,18 @@ impl Handler<MeasurementResult> for WebSocket {
     fn handle(&mut self, msg: MeasurementResult, ctx: &mut Self::Context) {
         // Handle the measurement result here
         let result = msg.0;
-        let response = format!("Measured distance: {}", result);
+        let response = serde_json::to_string(&SocketResponses::MeasureDistance {
+            measurement: result,
+        })
+        .unwrap();
         // Send the response back to the WebSocket client using _ctx
         ctx.text(response);
     }
+}
+
+#[derive(Serialize)]
+#[serde(tag = "variant")]
+enum SocketResponses {
+    Move { description: String },
+    MeasureDistance { measurement: f32 },
 }
