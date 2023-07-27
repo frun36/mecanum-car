@@ -1,3 +1,4 @@
+use std::f32::INFINITY;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -62,5 +63,28 @@ impl HcSr04 {
         }
 
         self.sound_speed * instant.elapsed().as_secs_f32() * 0.5
+    }
+
+    /// Perform `amount` measurements, discard the minimum and maximum, and return the mean
+    pub fn precise_distance_measurement(&mut self, amount: usize) -> f32 {
+        let mut measurements = Vec::new();
+        let mut max = 0.0;
+        let mut min = INFINITY;
+
+        for _ in 0..amount {
+            let val = self.measure_distance();
+            measurements.push(val);
+            if val < min {
+                min = val;
+            }
+            if val > max {
+                max = val;
+            }
+        }
+        measurements
+            .into_iter()
+            .filter(|x| *x != min && *x != max)
+            .sum::<f32>()
+            / ((amount - 2) as f32)
     }
 }

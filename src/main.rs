@@ -1,4 +1,4 @@
-use std::{io, sync::Mutex};
+use std::{io, sync::Mutex, time::Duration};
 
 use actix_files as fs;
 use actix_files::NamedFile;
@@ -12,10 +12,12 @@ use rppal::gpio::Gpio;
 
 use drive::Drive;
 use hc_sr04::HcSr04;
+use movement_calibration::Calibrator;
 use server::WebSocket;
 
 mod drive;
 mod hc_sr04;
+mod movement_calibration;
 mod server;
 
 const MOTOR0_FWD: u8 = 4;
@@ -57,7 +59,7 @@ async fn ws_connect(
 async fn main() -> Result<(), io::Error> {
     let gpio = Gpio::new().unwrap();
 
-    let drive = Drive::new(
+    let mut drive = Drive::new(
         &gpio,
         [
             (MOTOR0_FWD, MOTOR0_BWD, MOTOR0_PWM),
@@ -74,6 +76,21 @@ async fn main() -> Result<(), io::Error> {
 
     // For some reason without this line the distance measurement doesn't work
     println!("{}", distance_sensor.measure_distance());
+
+    // test
+    let mut cal = Calibrator::new(
+        &mut drive,
+        &mut distance_sensor,
+        0.4,
+        0.4,
+        0.1,
+        Duration::from_millis(1000),
+        1,
+    );
+
+    cal.calibrate();
+
+    // end test
 
     let drive_mutex = Mutex::new(drive);
     let drive_data = Data::new(drive_mutex);
