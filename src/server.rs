@@ -77,8 +77,10 @@ impl WebSocket {
             let result = task::spawn_blocking(move || {
                 let mut sensor = sensor.lock().unwrap();
                 sensor.measure_distance()
-            }).await.unwrap();
-            
+            })
+            .await
+            .unwrap();
+
             actor_addr.do_send(MeasurementResult(result));
         };
 
