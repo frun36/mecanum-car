@@ -3,6 +3,7 @@ use crate::hc_sr04::HcSr04;
 
 use std::fs::File;
 use std::io::Write;
+use std::thread;
 use std::time::{Duration, Instant};
 
 pub struct Calibrator<'a> {
@@ -38,24 +39,30 @@ impl<'a> Calibrator<'a> {
 
     pub fn calibrate(&mut self) {
         let mut duty_cycle = self.min_duty_cycle;
+        // Goes through all specified duty cycle values
         while duty_cycle <= self.max_duty_cycle {
+            // Performs `repetition` measurements (forward-backward cycles)
             for i in 0..self.repetitions {
+                // Forward calibration
                 let mut f = File::create(format!("measurements/{}_{}.csv", duty_cycle, i)).unwrap();
                 let fwd = self.single_calibration(&Motion::Forward, duty_cycle);
-                fwd.into_iter().for_each(|(dur, d)| {
-                    writeln!(f, "{},{}", dur.as_millis(), d).unwrap();
+                fwd.into_iter().for_each(|(dur, dist)| {
+                    println!("{} {}", dur.as_millis(), dist);
+                    writeln!(f, "{},{}", dur.as_millis(), dist).unwrap();
                 });
 
-                std::thread::sleep(Duration::from_millis(1000));
+                thread::sleep(Duration::from_millis(1000));
 
+                // Backward calibration
                 let mut f =
                     File::create(format!("measurements/{}_{}.csv", -duty_cycle, i)).unwrap();
                 let bwd = self.single_calibration(&Motion::Backward, duty_cycle);
-                bwd.into_iter().for_each(|(dur, d)| {
-                    writeln!(f, "{},{}", dur.as_millis(), d).unwrap();
+                bwd.into_iter().for_each(|(dur, dist)| {
+                    println!("{} {}", dur.as_millis(), dist);
+                    writeln!(f, "{},{}", dur.as_millis(), dist).unwrap();
                 });
 
-                std::thread::sleep(Duration::from_millis(1000));
+                thread::sleep(Duration::from_millis(1000));
             }
             duty_cycle += self.step;
         }
@@ -70,13 +77,11 @@ impl<'a> Calibrator<'a> {
         // Measurements
         let start_time = Instant::now();
         self.drive.move_robot_pwm_speed(motion, duty_cycle).unwrap();
-        for i in 0..self.measurements_per_repetition {
+        for _ in 0..self.measurements_per_repetition {
             measurements.push((
                 start_time.elapsed(),
                 self.distance_sensor.measure_distance(),
             ));
-            println!("{} {:?} {}", i, measurements[i].0, measurements[i].1);
-            // println!("{:?} {:?}", elapsed, self.measurement_duration);
         }
         self.drive
             .move_robot_pwm_speed(&Motion::Stop, duty_cycle)
