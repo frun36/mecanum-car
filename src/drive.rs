@@ -2,10 +2,12 @@ use rppal::gpio::{Error, Gpio};
 
 use serde::{Deserialize, Serialize};
 
+use actix::prelude::*;
+
 mod motor;
 
 /// Provides simple API for speed control
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Speed {
     Low,
     Medium,
@@ -13,8 +15,8 @@ pub enum Speed {
 }
 
 /// Converts `Speed` values to pwm frequencies
-fn get_speed(speed: &Speed) -> f64 {
-    match *speed {
+fn get_speed(speed: Speed) -> f64 {
+    match speed {
         Speed::Low => 0.3,
         Speed::Medium => 0.6,
         Speed::High => 1.0,
@@ -22,7 +24,7 @@ fn get_speed(speed: &Speed) -> f64 {
 }
 
 /// Supported robot motions
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Motion {
     Forward,
     ForwardRight,
@@ -90,8 +92,8 @@ impl Drive {
     }
 
     /// Starts specified `motion` with specified PWM `duty_cycle`
-    pub fn move_robot_pwm_speed(&mut self, motion: &Motion, duty_cycle: f64) -> Result<(), Error> {
-        let motor_speeds = match *motion {
+    pub fn move_robot_pwm_speed(&mut self, motion: Motion, duty_cycle: f64) -> Result<(), Error> {
+        let motor_speeds = match motion {
             Motion::Forward => [duty_cycle, duty_cycle, duty_cycle, duty_cycle],
             Motion::ForwardRight => [0., duty_cycle, 0., duty_cycle],
             Motion::Right => [-duty_cycle, duty_cycle, -duty_cycle, duty_cycle],
@@ -109,7 +111,7 @@ impl Drive {
     }
 
     /// Starts specified `motion` with specified `speed`
-    pub fn move_robot(&mut self, motion: &Motion, speed: &Speed) -> Result<(), Error> {
+    pub fn move_robot(&mut self, motion: Motion, speed: Speed) -> Result<(), Error> {
         let duty_cycle = get_speed(speed);
         self.move_robot_pwm_speed(motion, duty_cycle)?;
         Ok(())
@@ -122,5 +124,30 @@ impl Drive {
             m.print_pins();
             println!();
         });
+    }
+}
+
+impl Actor for Drive {
+    type Context = Context<Self>;
+
+    fn stopped(&mut self, ctx: &mut Self::Context) {
+        self.move_robot(Motion::Stop, Speed::Low).unwrap();
+    }
+}
+
+pub struct DriveMessage {
+    pub motion: Motion,
+    pub speed: Speed,
+}
+
+impl Message for DriveMessage {
+    type Result = ();
+}
+
+impl Handler<DriveMessage> for Drive {
+    type Result = ();
+
+    fn handle(&mut self, msg: DriveMessage, _ctx: &mut Self::Context) -> Self::Result {
+        self.move_robot(msg.motion, msg.speed).unwrap();
     }
 }

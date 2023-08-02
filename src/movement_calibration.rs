@@ -45,7 +45,7 @@ impl<'a> Calibrator<'a> {
             for i in 0..self.repetitions {
                 // Forward calibration
                 let mut f = File::create(format!("measurements/{}_{}.csv", duty_cycle, i)).unwrap();
-                let fwd = self.single_calibration(&Motion::Forward, duty_cycle);
+                let fwd = self.single_calibration(Motion::Forward, duty_cycle);
                 fwd.into_iter().for_each(|(dur, dist)| {
                     println!("{} {}", dur.as_millis(), dist);
                     writeln!(f, "{},{}", dur.as_millis(), dist).unwrap();
@@ -56,7 +56,7 @@ impl<'a> Calibrator<'a> {
                 // Backward calibration
                 let mut f =
                     File::create(format!("measurements/{}_{}.csv", -duty_cycle, i)).unwrap();
-                let bwd = self.single_calibration(&Motion::Backward, duty_cycle);
+                let bwd = self.single_calibration(Motion::Backward, duty_cycle);
                 bwd.into_iter().for_each(|(dur, dist)| {
                     println!("{} {}", dur.as_millis(), dist);
                     writeln!(f, "{},{}", dur.as_millis(), dist).unwrap();
@@ -68,7 +68,7 @@ impl<'a> Calibrator<'a> {
         }
     }
 
-    fn single_calibration(&mut self, motion: &Motion, duty_cycle: f64) -> Vec<(Duration, f32)> {
+    fn single_calibration(&mut self, motion: Motion, duty_cycle: f64) -> Vec<(Duration, f32)> {
         // Initialize vector for measurements
         let initial_distance = self.distance_sensor.precise_distance_measurement(7);
 
@@ -84,7 +84,7 @@ impl<'a> Calibrator<'a> {
             ));
         }
         self.drive
-            .move_robot_pwm_speed(&Motion::Stop, duty_cycle)
+            .move_robot_pwm_speed(Motion::Stop, duty_cycle)
             .unwrap();
 
         measurements

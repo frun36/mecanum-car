@@ -1,8 +1,11 @@
 use std::{io, sync::Mutex};
 
+use actix::prelude::*;
+
 use actix_files as fs;
 use actix_files::NamedFile;
 use actix_web::{
+    get,
     web::{self, Data},
     App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
@@ -40,18 +43,24 @@ const MOTOR_PWM_FREQUENCY: f64 = 100.0;
 const DISTANCE_SENSOR_TRIG: u8 = 26;
 const DISTANCE_SENSOR_ECHO: u8 = 20;
 
+#[get("/")]
 async fn index() -> impl Responder {
     NamedFile::open_async("static/index.html").await.unwrap()
 }
 
 /// Websocket handshake, start `WebSocket` actor
+#[get("/ws")]
 async fn ws_connect(
     req: HttpRequest,
     stream: web::Payload,
-    drive_data: Data<Mutex<Drive>>,
+    drive_addr: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<HcSr04>>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    ws::start(WebSocket::new(drive_data, hc_sr04_data), &req, stream)
+    ws::start(
+        WebSocket::new(drive_addr.lock().unwrap().to_owned(), hc_sr04_data),
+        &req,
+        stream,
+    )
 }
 
 #[actix_web::main]
@@ -68,8 +77,9 @@ async fn main() -> Result<(), io::Error> {
         ],
         MOTOR_PWM_FREQUENCY,
     )
-    .unwrap();
-    drive.list_motors();
+    .unwrap()
+    .start();
+    // drive.list_motors();
 
     let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
 
@@ -86,10 +96,9 @@ async fn main() -> Result<(), io::Error> {
         App::new()
             .app_data(drive_data.clone())
             .app_data(distance_sensor_data.clone())
-            // WebSocket UI
-            .service(web::resource("/").to(index))
+            .service(index)
             .service(fs::Files::new("/static", "./static").show_files_listing())
-            .service(web::resource("/ws").route(web::get().to(ws_connect)))
+            .service(ws_connect)
     })
     .workers(2)
     .bind(("0.0.0.0", 7878))?
