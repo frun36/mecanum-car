@@ -139,20 +139,20 @@ impl Actor for Drive {
     }
 }
 
+#[derive(Message)]
+#[rtype(result = "()")]
 pub struct DriveMessage {
     pub motion: Motion,
     pub speed: Speed,
 }
 
-impl Message for DriveMessage {
-    type Result = ();
-}
-
 impl Handler<DriveMessage> for Drive {
     type Result = ();
 
-    fn handle(&mut self, msg: DriveMessage, ctx: &mut Self::Context) -> Self::Result {
-        self.move_robot(msg.motion, msg.speed).unwrap();
-        
+    fn handle(&mut self, msg: DriveMessage, _ctx: &mut Self::Context) -> Self::Result {
+        match self.move_robot(msg.motion, msg.speed) {
+            Ok(_) => panic!(),
+            Err(_) => panic!(),
+        }
     }
 }

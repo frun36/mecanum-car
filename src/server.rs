@@ -165,11 +165,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     }
 }
 
+#[derive(Message)]
+#[rtype(result = "()")]
 struct MeasurementResult(f32);
-
-impl Message for MeasurementResult {
-    type Result = ();
-}
 
 impl Handler<MeasurementResult> for WebSocket {
     type Result = ();
