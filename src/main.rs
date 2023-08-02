@@ -53,11 +53,11 @@ async fn index() -> impl Responder {
 async fn ws_connect(
     req: HttpRequest,
     stream: web::Payload,
-    drive_addr: Data<Mutex<Addr<Drive>>>,
+    drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<HcSr04>>,
 ) -> Result<HttpResponse, actix_web::Error> {
     ws::start(
-        WebSocket::new(drive_addr.lock().unwrap().to_owned(), hc_sr04_data),
+        WebSocket::new(drive_data.lock().unwrap().to_owned(), hc_sr04_data),
         &req,
         stream,
     )
@@ -77,17 +77,17 @@ async fn main() -> Result<(), io::Error> {
         ],
         MOTOR_PWM_FREQUENCY,
     )
-    .unwrap()
-    .start();
-    // drive.list_motors();
+    .unwrap();
+    drive.list_motors();
+
+    let drive_addr = drive.start();
+    let drive_mutex = Mutex::new(drive_addr);
+    let drive_data = Data::new(drive_mutex);
 
     let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
 
     // For some reason without this line the distance measurement doesn't work
     println!("{}", distance_sensor.measure_distance());
-
-    let drive_mutex = Mutex::new(drive);
-    let drive_data = Data::new(drive_mutex);
 
     let distance_sensor_mutex = Mutex::new(distance_sensor);
     let distance_sensor_data = Data::new(distance_sensor_mutex);

@@ -130,7 +130,11 @@ impl Drive {
 impl Actor for Drive {
     type Context = Context<Self>;
 
-    fn stopped(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
+        println!("Drive actor started");
+    }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
         self.move_robot(Motion::Stop, Speed::Low).unwrap();
     }
 }
@@ -147,7 +151,8 @@ impl Message for DriveMessage {
 impl Handler<DriveMessage> for Drive {
     type Result = ();
 
-    fn handle(&mut self, msg: DriveMessage, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: DriveMessage, ctx: &mut Self::Context) -> Self::Result {
         self.move_robot(msg.motion, msg.speed).unwrap();
+        
     }
 }
