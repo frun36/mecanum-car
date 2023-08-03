@@ -78,7 +78,7 @@ impl WebSocket {
         let fut = async move {
             let result = task::spawn_blocking(move || {
                 let mut sensor = sensor.lock().unwrap();
-                sensor.measure_distance()
+                sensor.measure_distance().unwrap()
             })
             .await
             .unwrap();

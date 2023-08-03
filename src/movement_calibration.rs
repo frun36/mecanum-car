@@ -70,7 +70,7 @@ impl<'a> Calibrator<'a> {
 
     fn single_calibration(&mut self, motion: Motion, duty_cycle: f64) -> Vec<(Duration, f32)> {
         // Initialize vector for measurements
-        let initial_distance = self.distance_sensor.precise_distance_measurement(7);
+        let initial_distance = self.distance_sensor.precise_distance_measurement(7).unwrap();
 
         let mut measurements = vec![(Duration::from_millis(0), initial_distance)];
 
@@ -80,7 +80,7 @@ impl<'a> Calibrator<'a> {
         for _ in 0..self.measurements_per_repetition {
             measurements.push((
                 start_time.elapsed(),
-                self.distance_sensor.measure_distance(),
+                self.distance_sensor.measure_distance().unwrap(),
             ));
         }
         self.drive
