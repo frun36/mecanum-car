@@ -108,7 +108,11 @@ impl Actor for Calibrator {
 impl Handler<HcSr04Response> for Calibrator {
     type Result = ();
 
-    fn handle(&mut self, msg: HcSr04Response, ctx: &mut Self::Context) -> Self::Result {
-        todo!()
+    fn handle(&mut self, msg: HcSr04Response, _ctx: &mut Self::Context) -> Self::Result {
+        let result = match msg {
+            HcSr04Response::Ok(d) => format!("{}", d),
+            HcSr04Response::Err(e) => format!("{}", e),
+        };
+        println!("{}", result);
     }
 }
