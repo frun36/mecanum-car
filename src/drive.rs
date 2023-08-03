@@ -163,10 +163,11 @@ impl Handler<DriveMessage> for Drive {
     type Result = ();
 
     fn handle(&mut self, msg: DriveMessage, _ctx: &mut Self::Context) -> Self::Result {
-        match self.move_robot(msg.motion, msg.speed) {
-            Ok(_) => self.websocket_addr.as_ref().unwrap().do_send(DriveResponse::Ok(msg)),
-            Err(e) => self.websocket_addr.as_ref().unwrap().do_send(DriveResponse::Err(e)),
-        }
+        let response = match self.move_robot(msg.motion, msg.speed) {
+            Ok(_) => DriveResponse::Ok(msg),
+            Err(e) => DriveResponse::Err(e),
+        };
+        self.websocket_addr.as_ref().unwrap().do_send(response);
     }
 }
 

@@ -1,16 +1,12 @@
-use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use actix::fut::wrap_future;
 use actix::prelude::*;
-use actix_web::rt::task;
-use actix_web::web::Data;
 use actix_web_actors::ws;
 
 use serde::{Deserialize, Serialize};
 
 use crate::drive::{Drive, DriveMessage, DriveResponse, Motion, Speed};
-use crate::hc_sr04::HcSr04;
+use crate::hc_sr04::{HcSr04, HcSr04Message, HcSr04Response};
 use crate::movement_calibration::Calibrator;
 use crate::Device;
 
@@ -23,7 +19,7 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 pub struct WebSocket {
     hb: Instant,
     drive_addr: Addr<Drive>,
-    hc_sr04_data: Data<Mutex<HcSr04>>,
+    hc_sr04_addr: Addr<HcSr04>,
 }
 
 #[derive(Deserialize)]
@@ -35,11 +31,11 @@ enum SocketMessages {
 }
 
 impl WebSocket {
-    pub fn new(drive_addr: Addr<Drive>, hc_sr04_data: Data<Mutex<HcSr04>>) -> Self {
+    pub fn new(drive_addr: Addr<Drive>, hc_sr04_addr: Addr<HcSr04>) -> Self {
         Self {
             hb: Instant::now(),
             drive_addr,
-            hc_sr04_data,
+            hc_sr04_addr,
         }
     }
 
@@ -50,11 +46,7 @@ impl WebSocket {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
                 // heartbeat timed out
                 println!("Websocket Client heartbeat failed, disconnecting!");
-
-                // stop actor
                 ctx.stop();
-
-                // don't try to send a ping
                 return;
             }
 
@@ -71,22 +63,8 @@ impl WebSocket {
         self.drive_addr.do_send(DriveMessage { motion, speed });
     }
 
-    fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
-        let sensor = self.hc_sr04_data.clone();
-        let actor_addr = ctx.address();
-
-        let fut = async move {
-            let result = task::spawn_blocking(move || {
-                let mut sensor = sensor.lock().unwrap();
-                sensor.measure_distance().unwrap()
-            })
-            .await
-            .unwrap();
-
-            actor_addr.do_send(MeasurementResult(result));
-        };
-
-        ctx.spawn(wrap_future(fut));
+    fn measure_distance_handler(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        self.hc_sr04_addr.do_send(HcSr04Message);
     }
 
     // fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -116,6 +94,7 @@ impl Actor for WebSocket {
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("WebSocket actor started");
         self.drive_addr.do_send(AddrMessage(ctx.address()));
+        self.hc_sr04_addr.do_send(AddrMessage(ctx.address()));
         self.hb(ctx);
     }
 }
@@ -163,6 +142,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     }
 }
 
+// Send address to device actors
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct AddrMessage(Addr<WebSocket>);
@@ -176,6 +156,17 @@ impl Handler<AddrMessage> for Drive {
     }
 }
 
+impl Handler<AddrMessage> for HcSr04 {
+    type Result = ();
+
+    fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
+        self.set_websocket_addr(msg.0);
+        println!("Set WebSocket address for HcSr04");
+    }
+}
+
+// Device actor response handling
+
 impl Handler<DriveResponse> for WebSocket {
     type Result = ();
 
@@ -184,32 +175,31 @@ impl Handler<DriveResponse> for WebSocket {
             description: match msg {
                 DriveResponse::Ok(m) => format!("Moving {:?} with {:?} speed", m.motion, m.speed),
                 DriveResponse::Err(e) => format!("Drive error: {:?}", e),
-            }
+            },
         })
         .unwrap();
         ctx.text(response);
     }
 }
 
-#[derive(Message)]
-#[rtype(result = "()")]
-struct MeasurementResult(f32);
-
-impl Handler<MeasurementResult> for WebSocket {
+impl Handler<HcSr04Response> for WebSocket {
     type Result = ();
 
-    fn handle(&mut self, msg: MeasurementResult, ctx: &mut Self::Context) {
-        // Handle the measurement result here
-        let result = msg.0;
-        let response = serde_json::to_string(&SocketResponses::MeasureDistance {
-            measurement: result,
-        })
-        .unwrap();
-        // Send the response back to the WebSocket client using ctx
+    fn handle(&mut self, msg: HcSr04Response, ctx: &mut Self::Context) {
+        // Handle the measurement result
+        let response = match msg {
+            HcSr04Response::Ok(dist) => {
+                serde_json::to_string(&SocketResponses::MeasureDistance { measurement: dist })
+                    .unwrap()
+            }
+            HcSr04Response::Err(e) => format!("HcSr04 error: {:?}", e),
+        };
+        // Send the response back to the WebSocket client
         ctx.text(response);
     }
 }
 
+/// WebSocket to client responses
 #[derive(Serialize)]
 #[serde(tag = "variant")]
 enum SocketResponses {

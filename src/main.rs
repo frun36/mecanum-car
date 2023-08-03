@@ -57,10 +57,10 @@ async fn ws_connect(
     req: HttpRequest,
     stream: web::Payload,
     drive_data: Data<Mutex<Addr<Drive>>>,
-    hc_sr04_data: Data<Mutex<HcSr04>>,
+    hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
     ws::start(
-        WebSocket::new(drive_data.lock().unwrap().to_owned(), hc_sr04_data),
+        WebSocket::new(drive_data.lock().unwrap().to_owned(), hc_sr04_data.lock().unwrap().to_owned()),
         &req,
         stream,
     )
@@ -91,19 +91,20 @@ async fn main() -> Result<(), io::Error> {
     let drive_data = Data::new(drive_mutex);
 
     // HcSr04 initialization
-    let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0).unwrap();
+    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0, None).unwrap();
 
     // For some reason without this line the distance measurement doesn't work
-    println!("{}", distance_sensor.measure_distance().unwrap());
+    println!("{}", hc_sr04.measure_distance().unwrap());
 
-    let distance_sensor_mutex = Mutex::new(distance_sensor);
-    let distance_sensor_data = Data::new(distance_sensor_mutex);
+    let hc_sr04_addr = hc_sr04.start();
+    let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
+    let hc_sr04_data = Data::new(hc_sr04_mutex);
 
     // Start the server
     HttpServer::new(move || {
         App::new()
             .app_data(drive_data.clone())
-            .app_data(distance_sensor_data.clone())
+            .app_data(hc_sr04_data.clone())
             .service(index)
             .service(Files::new("/static", "./static").show_files_listing())
             .service(ws_connect)
