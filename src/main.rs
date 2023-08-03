@@ -2,8 +2,7 @@ use std::{io, sync::Mutex};
 
 use actix::prelude::*;
 
-use actix_files as fs;
-use actix_files::NamedFile;
+use actix_files::{Files, NamedFile};
 use actix_web::{
     get,
     web::{self, Data},
@@ -65,8 +64,10 @@ async fn ws_connect(
 
 #[actix_web::main]
 async fn main() -> Result<(), io::Error> {
+    // Gpio initialization
     let gpio = Gpio::new().unwrap();
 
+    // Drive initialization
     let drive = Drive::new(
         &gpio,
         [
@@ -84,6 +85,7 @@ async fn main() -> Result<(), io::Error> {
     let drive_mutex = Mutex::new(drive_addr);
     let drive_data = Data::new(drive_mutex);
 
+    // HcSr04 initialization
     let mut distance_sensor = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0);
 
     // For some reason without this line the distance measurement doesn't work
@@ -92,12 +94,13 @@ async fn main() -> Result<(), io::Error> {
     let distance_sensor_mutex = Mutex::new(distance_sensor);
     let distance_sensor_data = Data::new(distance_sensor_mutex);
 
+    // Start the server
     HttpServer::new(move || {
         App::new()
             .app_data(drive_data.clone())
             .app_data(distance_sensor_data.clone())
             .service(index)
-            .service(fs::Files::new("/static", "./static").show_files_listing())
+            .service(Files::new("/static", "./static").show_files_listing())
             .service(ws_connect)
     })
     .workers(2)
