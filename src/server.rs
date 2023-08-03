@@ -9,9 +9,10 @@ use actix_web_actors::ws;
 
 use serde::{Deserialize, Serialize};
 
-use crate::drive::{Drive, DriveMessage, Motion, Speed};
+use crate::drive::{Drive, DriveMessage, DriveResponse, Motion, Speed};
 use crate::hc_sr04::HcSr04;
 use crate::movement_calibration::Calibrator;
+use crate::Device;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -65,14 +66,9 @@ impl WebSocket {
         &mut self,
         motion: Motion,
         speed: Speed,
-        ctx: &mut <WebSocket as Actor>::Context,
+        _ctx: &mut <WebSocket as Actor>::Context,
     ) {
         self.drive_addr.do_send(DriveMessage { motion, speed });
-        let response = serde_json::to_string(&SocketResponses::Move {
-            description: format!("{:?} with {:?} speed", motion, speed),
-        })
-        .unwrap();
-        ctx.text(response);
     }
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -118,6 +114,8 @@ impl Actor for WebSocket {
 
     /// Method is called on actor start. We start the heartbeat process here.
     fn started(&mut self, ctx: &mut Self::Context) {
+        println!("WebSocket actor started");
+        self.drive_addr.do_send(AddrMessage(ctx.address()));
         self.hb(ctx);
     }
 }
@@ -167,6 +165,34 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
 
 #[derive(Message)]
 #[rtype(result = "()")]
+pub struct AddrMessage(Addr<WebSocket>);
+
+impl Handler<AddrMessage> for Drive {
+    type Result = ();
+
+    fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
+        self.set_websocket_addr(msg.0);
+        println!("Set WebSocket address for Drive");
+    }
+}
+
+impl Handler<DriveResponse> for WebSocket {
+    type Result = ();
+
+    fn handle(&mut self, msg: DriveResponse, ctx: &mut Self::Context) -> Self::Result {
+        let response = serde_json::to_string(&SocketResponses::Move {
+            description: match msg {
+                DriveResponse::Ok(m) => format!("Moving {:?} with {:?} speed", m.motion, m.speed),
+                DriveResponse::Err(e) => format!("Drive error: {:?}", e),
+            }
+        })
+        .unwrap();
+        ctx.text(response);
+    }
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
 struct MeasurementResult(f32);
 
 impl Handler<MeasurementResult> for WebSocket {
@@ -179,7 +205,7 @@ impl Handler<MeasurementResult> for WebSocket {
             measurement: result,
         })
         .unwrap();
-        // Send the response back to the WebSocket client using _ctx
+        // Send the response back to the WebSocket client using ctx
         ctx.text(response);
     }
 }

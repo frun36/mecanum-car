@@ -42,6 +42,10 @@ const MOTOR_PWM_FREQUENCY: f64 = 100.0;
 const DISTANCE_SENSOR_TRIG: u8 = 26;
 const DISTANCE_SENSOR_ECHO: u8 = 20;
 
+trait Device {
+    fn set_websocket_addr(&mut self, addr: Addr<WebSocket>);
+}
+
 #[get("/")]
 async fn index() -> impl Responder {
     NamedFile::open_async("static/index.html").await.unwrap()
@@ -77,6 +81,7 @@ async fn main() -> Result<(), io::Error> {
             (MOTOR3_FWD, MOTOR3_BWD, MOTOR3_PWM),
         ],
         MOTOR_PWM_FREQUENCY,
+        None,
     )
     .unwrap();
     drive.list_motors();

@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use actix::prelude::*;
 
+use crate::{server::WebSocket, Device};
+
 mod motor;
 
 /// Provides simple API for speed control
@@ -52,6 +54,7 @@ pub enum Motion {
 pub struct Drive {
     motors: [motor::Motor; 4],
     pwm_frequency: f64,
+    websocket_addr: Option<Addr<WebSocket>>,
 }
 
 impl Drive {
@@ -60,6 +63,7 @@ impl Drive {
         gpio: &Gpio,
         motor_pins: [(u8, u8, u8); 4],
         pwm_frequency: f64,
+        websocket_addr: Option<Addr<WebSocket>>,
     ) -> Result<Self, Error> {
         Ok(Self {
             motors: [
@@ -69,6 +73,7 @@ impl Drive {
                 motor::Motor::new(gpio, motor_pins[3].0, motor_pins[3].1, motor_pins[3].2)?,
             ],
             pwm_frequency,
+            websocket_addr,
         })
     }
 
@@ -127,6 +132,8 @@ impl Drive {
     }
 }
 
+// Actor communication
+
 impl Actor for Drive {
     type Context = Context<Self>;
 
@@ -136,6 +143,12 @@ impl Actor for Drive {
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
         self.move_robot(Motion::Stop, Speed::Low).unwrap();
+    }
+}
+
+impl Device for Drive {
+    fn set_websocket_addr(&mut self, addr: Addr<WebSocket>) {
+        self.websocket_addr = Some(addr);
     }
 }
 
@@ -151,8 +164,15 @@ impl Handler<DriveMessage> for Drive {
 
     fn handle(&mut self, msg: DriveMessage, _ctx: &mut Self::Context) -> Self::Result {
         match self.move_robot(msg.motion, msg.speed) {
-            Ok(_) => panic!(),
-            Err(_) => panic!(),
+            Ok(_) => self.websocket_addr.as_ref().unwrap().do_send(DriveResponse::Ok(msg)),
+            Err(e) => self.websocket_addr.as_ref().unwrap().do_send(DriveResponse::Err(e)),
         }
     }
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub enum DriveResponse {
+    Ok(DriveMessage),
+    Err(Error),
 }
