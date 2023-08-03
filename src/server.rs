@@ -6,7 +6,7 @@ use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 
 use crate::drive::{Drive, DriveMessage, DriveResponse, Motion, Speed};
-use crate::hc_sr04::{HcSr04, HcSr04Message, HcSr04Response};
+use crate::hc_sr04::{HcSr04, HcSr04Message, HcSr04Response, Recipient};
 use crate::movement_calibration::Calibrator;
 use crate::Device;
 
@@ -63,8 +63,8 @@ impl WebSocket {
         self.drive_addr.do_send(DriveMessage { motion, speed });
     }
 
-    fn measure_distance_handler(&mut self, _ctx: &mut <Self as Actor>::Context) {
-        self.hc_sr04_addr.do_send(HcSr04Message);
+    fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
+        self.hc_sr04_addr.do_send(HcSr04Message(Recipient::WebSocket(ctx.address())));
     }
 
     // fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -94,7 +94,6 @@ impl Actor for WebSocket {
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("WebSocket actor started");
         self.drive_addr.do_send(AddrMessage(ctx.address()));
-        self.hc_sr04_addr.do_send(AddrMessage(ctx.address()));
         self.hb(ctx);
     }
 }
@@ -153,15 +152,6 @@ impl Handler<AddrMessage> for Drive {
     fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.set_websocket_addr(msg.0);
         println!("Set WebSocket address for Drive");
-    }
-}
-
-impl Handler<AddrMessage> for HcSr04 {
-    type Result = ();
-
-    fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
-        self.set_websocket_addr(msg.0);
-        println!("Set WebSocket address for HcSr04");
     }
 }
 

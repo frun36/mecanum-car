@@ -91,7 +91,7 @@ async fn main() -> Result<(), io::Error> {
     let drive_data = Data::new(drive_mutex);
 
     // HcSr04 initialization
-    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0, None).unwrap();
+    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0).unwrap();
 
     // For some reason without this line the distance measurement doesn't work
     println!("{}", hc_sr04.measure_distance().unwrap());

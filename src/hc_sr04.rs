@@ -1,5 +1,6 @@
 use actix::prelude::*;
 
+use crate::movement_calibration::Calibrator;
 use crate::{server::WebSocket, Device};
 
 use std::f32::INFINITY;
@@ -13,7 +14,6 @@ pub struct HcSr04 {
     echo: InputPin,
     sound_speed: f32,
     timeout: Duration,
-    websocket_addr: Option<Addr<WebSocket>>,
 }
 
 impl HcSr04 {
@@ -31,7 +31,6 @@ impl HcSr04 {
         trig_pin: u8,
         echo_pin: u8,
         temperature: f32,
-        websocket_addr: Option<Addr<WebSocket>>,
     ) -> Result<Self, Error> {
         let (sound_speed, timeout) = Self::calculate_parameters(temperature);
         let mut echo = gpio.get(echo_pin)?.into_input_pulldown();
@@ -42,7 +41,6 @@ impl HcSr04 {
             echo,
             sound_speed,
             timeout,
-            websocket_addr,
         })
     }
 
@@ -91,25 +89,27 @@ impl Actor for HcSr04 {
     type Context = Context<Self>;
 }
 
-impl Device for HcSr04 {
-    fn set_websocket_addr(&mut self, addr: Addr<WebSocket>) {
-        self.websocket_addr = Some(addr);
-    }
+pub enum Recipient {
+    WebSocket(Addr<WebSocket>),
+    Calibrator(Addr<Calibrator>),
 }
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct HcSr04Message;
+pub struct HcSr04Message(pub Recipient);
 
 impl Handler<HcSr04Message> for HcSr04 {
     type Result = ();
 
-    fn handle(&mut self, _msg: HcSr04Message, _ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: HcSr04Message, _ctx: &mut Self::Context) -> Self::Result {
         let response = match self.measure_distance() {
             Ok(dist) => HcSr04Response::Ok(dist),
             Err(e) => HcSr04Response::Err(e),
         };
-        self.websocket_addr.as_ref().unwrap().do_send(response)
+        match msg.0 {
+            Recipient::WebSocket(addr) => addr.do_send(response),
+            Recipient::Calibrator(addr) => addr.do_send(response),
+        };
     }
 }
 
