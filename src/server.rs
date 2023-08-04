@@ -6,7 +6,7 @@ use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 
 use crate::drive::{Drive, DriveMessage, DriveResponse, Motion, Speed};
-use crate::hc_sr04::{HcSr04, HcSr04Message, HcSr04Response, Recipient};
+use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response, Recipient};
 use crate::movement_calibration::Calibrator;
 use crate::Device;
 
@@ -64,7 +64,8 @@ impl WebSocket {
     }
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
-        self.hc_sr04_addr.do_send(HcSr04Message(Recipient::WebSocket(ctx.address())));
+        self.hc_sr04_addr
+            .do_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())));
     }
 
     // fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -178,10 +179,15 @@ impl Handler<HcSr04Response> for WebSocket {
     fn handle(&mut self, msg: HcSr04Response, ctx: &mut Self::Context) {
         // Handle the measurement result
         let response = match msg {
-            HcSr04Response::Ok(dist) => {
-                serde_json::to_string(&SocketResponses::MeasureDistance { measurement: dist })
-                    .unwrap()
-            }
+            HcSr04Response::Ok(dist) => serde_json::to_string(&SocketResponses::MeasureDistance {
+                measurement: match dist {
+                    HcSr04Measurement::Single(d) => d,
+                    HcSr04Measurement::Multiple(d_vec) => {
+                        d_vec.iter().sum::<f32>() / d_vec.len() as f32
+                    }
+                },
+            })
+            .unwrap(),
             HcSr04Response::Err(e) => format!("HcSr04 error: {:?}", e),
         };
         // Send the response back to the WebSocket client

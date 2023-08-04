@@ -9,6 +9,8 @@ use std::time::{Duration, Instant};
 
 use rppal::gpio::{Error, Gpio, InputPin, Level, OutputPin, Trigger};
 
+use serde::Serialize;
+
 pub struct HcSr04 {
     trig: OutputPin,
     echo: InputPin,
@@ -26,12 +28,7 @@ impl HcSr04 {
         (sound_speed, timeout)
     }
 
-    pub fn new(
-        gpio: &Gpio,
-        trig_pin: u8,
-        echo_pin: u8,
-        temperature: f32,
-    ) -> Result<Self, Error> {
+    pub fn new(gpio: &Gpio, trig_pin: u8, echo_pin: u8, temperature: f32) -> Result<Self, Error> {
         let (sound_speed, timeout) = Self::calculate_parameters(temperature);
         let mut echo = gpio.get(echo_pin)?.into_input_pulldown();
         echo.set_interrupt(Trigger::Both)?;
@@ -44,6 +41,7 @@ impl HcSr04 {
         })
     }
 
+    /// Perform a single distance measurement
     pub fn measure_distance(&mut self) -> Result<f32, Error> {
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
@@ -59,27 +57,14 @@ impl HcSr04 {
         Ok(self.sound_speed * instant.elapsed().as_secs_f32() * 0.5)
     }
 
-    /// Perform `amount` measurements, discard the minimum and maximum, and return the mean
-    pub fn precise_distance_measurement(&mut self, amount: usize) -> Result<f32, Error> {
+    /// Perform `n` distance measurements, return a vector containing them
+    pub fn measure_distance_n(&mut self, n: usize) -> Result<Vec<f32>, Error> {
         let mut measurements = Vec::new();
-        let mut max = 0.0;
-        let mut min = INFINITY;
 
-        for _ in 0..amount {
-            let val = self.measure_distance()?;
-            measurements.push(val);
-            if val < min {
-                min = val;
-            }
-            if val > max {
-                max = val;
-            }
+        for _ in 0..n {
+            measurements.push(self.measure_distance()?);
         }
-        Ok(measurements
-            .into_iter()
-            .filter(|x| *x != min && *x != max)
-            .sum::<f32>()
-            / ((amount - 2) as f32))
+        Ok(measurements)
     }
 }
 
@@ -96,26 +81,50 @@ pub enum Recipient {
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct HcSr04Message(pub Recipient);
+pub enum HcSr04Message {
+    Single(Recipient),
+    Multiple(usize, Recipient),
+}
 
 impl Handler<HcSr04Message> for HcSr04 {
     type Result = ();
 
     fn handle(&mut self, msg: HcSr04Message, _ctx: &mut Self::Context) -> Self::Result {
-        let response = match self.measure_distance() {
-            Ok(dist) => HcSr04Response::Ok(dist),
-            Err(e) => HcSr04Response::Err(e),
+        let response;
+        let recipient;
+        match msg {
+            HcSr04Message::Single(m_recipient) => {
+                recipient = m_recipient;
+                response = match self.measure_distance() {
+                    Ok(dist) => HcSr04Response::Ok(HcSr04Measurement::Single(dist)),
+                    Err(e) => HcSr04Response::Err(e),
+                };
+            }
+            HcSr04Message::Multiple(n, m_recipient) => {
+                recipient = m_recipient;
+                response = match self.measure_distance_n(n) {
+                    Ok(dist) => HcSr04Response::Ok(HcSr04Measurement::Multiple(dist)),
+                    Err(e) => HcSr04Response::Err(e),
+                };
+            }
         };
-        match msg.0 {
+
+        match recipient {
             Recipient::WebSocket(addr) => addr.do_send(response),
             Recipient::Calibrator(addr) => addr.do_send(response),
         };
     }
 }
 
+#[derive(Debug, Serialize)]
+pub enum HcSr04Measurement {
+    Single(f32),
+    Multiple(Vec<f32>),
+}
+
 #[derive(Message)]
 #[rtype(result = "()")]
 pub enum HcSr04Response {
-    Ok(f32),
+    Ok(HcSr04Measurement),
     Err(Error),
 }

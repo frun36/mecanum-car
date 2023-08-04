@@ -110,7 +110,7 @@ impl Handler<HcSr04Response> for Calibrator {
 
     fn handle(&mut self, msg: HcSr04Response, _ctx: &mut Self::Context) -> Self::Result {
         let result = match msg {
-            HcSr04Response::Ok(d) => format!("{}", d),
+            HcSr04Response::Ok(d) => format!("{:?}", d),
             HcSr04Response::Err(e) => format!("{}", e),
         };
         println!("{}", result);
