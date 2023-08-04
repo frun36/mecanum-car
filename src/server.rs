@@ -1,7 +1,9 @@
 use std::time::{Duration, Instant};
+use std::sync::Mutex;
 
 use actix::prelude::*;
 use actix_web_actors::ws;
+use actix_web::web::Data;
 
 use serde::{Deserialize, Serialize};
 
@@ -18,8 +20,8 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct WebSocket {
     hb: Instant,
-    drive_addr: Addr<Drive>,
-    hc_sr04_addr: Addr<HcSr04>,
+    drive_data: Data<Mutex<Addr<Drive>>>,
+    hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
 }
 
 #[derive(Deserialize)]
@@ -31,11 +33,11 @@ enum SocketMessages {
 }
 
 impl WebSocket {
-    pub fn new(drive_addr: Addr<Drive>, hc_sr04_addr: Addr<HcSr04>) -> Self {
+    pub fn new(drive_data: Data<Mutex<Addr<Drive>>>, hc_sr04_data: Data<Mutex<Addr<HcSr04>>>) -> Self {
         Self {
             hb: Instant::now(),
-            drive_addr,
-            hc_sr04_addr,
+            drive_data,
+            hc_sr04_data,
         }
     }
 
@@ -60,11 +62,13 @@ impl WebSocket {
         speed: Speed,
         _ctx: &mut <WebSocket as Actor>::Context,
     ) {
-        self.drive_addr.do_send(DriveMessage { motion, speed });
+        let drive_addr = self.drive_data.lock().unwrap().to_owned();
+        drive_addr.do_send(DriveMessage { motion, speed });
     }
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
-        self.hc_sr04_addr
+        let hc_sr04_addr = self.hc_sr04_data.lock().unwrap().to_owned();
+        hc_sr04_addr
             .do_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())));
     }
 
@@ -94,7 +98,8 @@ impl Actor for WebSocket {
     /// Method is called on actor start. We start the heartbeat process here.
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("WebSocket actor started");
-        self.drive_addr.do_send(AddrMessage(ctx.address()));
+        let drive_addr = self.drive_data.lock().unwrap().to_owned();
+        drive_addr.do_send(AddrMessage(ctx.address()));
         self.hb(ctx);
     }
 }

@@ -16,6 +16,8 @@ use drive::Drive;
 use hc_sr04::HcSr04;
 use server::WebSocket;
 
+use crate::movement_calibration::Calibrator;
+
 mod drive;
 mod hc_sr04;
 mod movement_calibration;
@@ -60,7 +62,7 @@ async fn ws_connect(
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
     ws::start(
-        WebSocket::new(drive_data.lock().unwrap().to_owned(), hc_sr04_data.lock().unwrap().to_owned()),
+        WebSocket::new(drive_data, hc_sr04_data),
         &req,
         stream,
     )
@@ -99,6 +101,10 @@ async fn main() -> Result<(), io::Error> {
     let hc_sr04_addr = hc_sr04.start();
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
     let hc_sr04_data = Data::new(hc_sr04_mutex);
+
+    let calibrator = Calibrator::new(drive_data.clone(), hc_sr04_data.clone(), 0.0, 0.0, 1., 1, 1);
+    let calibrator_addr = calibrator.start();
+
 
     // Start the server
     HttpServer::new(move || {
