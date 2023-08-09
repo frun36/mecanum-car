@@ -61,11 +61,7 @@ async fn ws_connect(
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    ws::start(
-        WebSocket::new(drive_data, hc_sr04_data),
-        &req,
-        stream,
-    )
+    ws::start(WebSocket::new(drive_data, hc_sr04_data), &req, stream)
 }
 
 #[actix_web::main]
@@ -96,7 +92,7 @@ async fn main() -> Result<(), io::Error> {
     let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0).unwrap();
 
     // For some reason without this line the distance measurement doesn't work
-    println!("{}", hc_sr04.measure_distance().unwrap());
+    println!("{}", hc_sr04.measure_distance().unwrap().distance);
 
     let hc_sr04_addr = hc_sr04.start();
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
@@ -104,7 +100,6 @@ async fn main() -> Result<(), io::Error> {
 
     let calibrator = Calibrator::new(drive_data.clone(), hc_sr04_data.clone(), 0.0, 0.0, 1., 1, 1);
     let calibrator_addr = calibrator.start();
-
 
     // Start the server
     HttpServer::new(move || {

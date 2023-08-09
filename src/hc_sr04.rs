@@ -1,11 +1,11 @@
 use actix::prelude::*;
 
 use crate::movement_calibration::Calibrator;
-use crate::{server::WebSocket, Device};
+use crate::server::WebSocket;
 
 use std::f32::INFINITY;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rppal::gpio::{Error, Gpio, InputPin, Level, OutputPin, Trigger};
 
@@ -42,7 +42,11 @@ impl HcSr04 {
     }
 
     /// Perform a single distance measurement
-    pub fn measure_distance(&mut self) -> Result<f32, Error> {
+    pub fn measure_distance(&mut self) -> Result<HcSr04Result, Error> {
+        let time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
         self.trig.set_low();
@@ -51,14 +55,20 @@ impl HcSr04 {
         let instant = Instant::now();
 
         if self.echo.poll_interrupt(false, Some(self.timeout))? != Some(Level::Low) {
-            return Ok(INFINITY);
+            return Ok(HcSr04Result {
+                time,
+                distance: INFINITY,
+            });
         }
 
-        Ok(self.sound_speed * instant.elapsed().as_secs_f32() * 0.5)
+        Ok(HcSr04Result {
+            time,
+            distance: self.sound_speed * instant.elapsed().as_secs_f32() * 0.5,
+        })
     }
 
     /// Perform `n` distance measurements, return a vector containing them
-    pub fn measure_distance_n(&mut self, n: usize) -> Result<Vec<f32>, Error> {
+    pub fn measure_distance_n(&mut self, n: usize) -> Result<Vec<HcSr04Result>, Error> {
         let mut measurements = Vec::new();
 
         for _ in 0..n {
@@ -117,9 +127,15 @@ impl Handler<HcSr04Message> for HcSr04 {
 }
 
 #[derive(Debug, Serialize)]
+pub struct HcSr04Result {
+    pub time: Duration,
+    pub distance: f32,
+}
+
+#[derive(Debug, Serialize)]
 pub enum HcSr04Measurement {
-    Single(f32),
-    Multiple(Vec<f32>),
+    Single(HcSr04Result),
+    Multiple(Vec<HcSr04Result>),
 }
 
 #[derive(Message)]

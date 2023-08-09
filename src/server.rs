@@ -1,9 +1,9 @@
-use std::time::{Duration, Instant};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use actix::prelude::*;
-use actix_web_actors::ws;
 use actix_web::web::Data;
+use actix_web_actors::ws;
 
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +33,10 @@ enum SocketMessages {
 }
 
 impl WebSocket {
-    pub fn new(drive_data: Data<Mutex<Addr<Drive>>>, hc_sr04_data: Data<Mutex<Addr<HcSr04>>>) -> Self {
+    pub fn new(
+        drive_data: Data<Mutex<Addr<Drive>>>,
+        hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
+    ) -> Self {
         Self {
             hb: Instant::now(),
             drive_data,
@@ -68,8 +71,7 @@ impl WebSocket {
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
         let hc_sr04_addr = self.hc_sr04_data.lock().unwrap().to_owned();
-        hc_sr04_addr
-            .do_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())));
+        hc_sr04_addr.do_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())));
     }
 
     // fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -186,9 +188,9 @@ impl Handler<HcSr04Response> for WebSocket {
         let response = match msg {
             HcSr04Response::Ok(dist) => serde_json::to_string(&SocketResponses::MeasureDistance {
                 measurement: match dist {
-                    HcSr04Measurement::Single(d) => d,
+                    HcSr04Measurement::Single(d) => d.distance,
                     HcSr04Measurement::Multiple(d_vec) => {
-                        d_vec.iter().sum::<f32>() / d_vec.len() as f32
+                        d_vec.iter().map(|x| x.distance).sum::<f32>() / d_vec.len() as f32
                     }
                 },
             })

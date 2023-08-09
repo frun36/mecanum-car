@@ -1,7 +1,7 @@
 use actix::prelude::*;
 use actix_web::web::Data;
 
-use crate::drive::{Drive, DriveMessage, Motion};
+use crate::drive::{Drive, DriveMessage, Motion, Speed};
 use crate::hc_sr04::{HcSr04, HcSr04Message, HcSr04Response};
 
 use std::fs::File;
@@ -50,10 +50,45 @@ impl Actor for Calibrator {
     }
 }
 
+#[derive(Message)]
+#[rtype(result = "()")]
+enum CalibratorMessage {
+    Start,
+    Stop,
+}
+
+impl Handler<CalibratorMessage> for Calibrator {
+    type Result = ();
+
+    fn handle(&mut self, msg: CalibratorMessage, ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            CalibratorMessage::Start => {
+                let hc_sr04_addr = self.hc_sr04_data.lock().unwrap();
+                hc_sr04_addr.do_send(HcSr04Message::Multiple(
+                    self.measurements_per_repetition,
+                    crate::hc_sr04::Recipient::Calibrator(ctx.address()),
+                ));
+            }
+            CalibratorMessage::Stop => {
+                let drive_addr = self.drive_data.lock().unwrap();
+                drive_addr.do_send(DriveMessage {
+                    motion: Motion::Stop,
+                    speed: Speed::Low,
+                });
+            }
+        };
+    }
+}
+
 impl Handler<HcSr04Response> for Calibrator {
     type Result = ();
 
     fn handle(&mut self, msg: HcSr04Response, _ctx: &mut Self::Context) -> Self::Result {
+        let drive_addr = self.drive_data.lock().unwrap();
+        drive_addr.do_send(DriveMessage {
+            motion: Motion::Stop,
+            speed: Speed::Low,
+        });
         let result = match msg {
             HcSr04Response::Ok(d) => format!("{:?}", d),
             HcSr04Response::Err(e) => format!("{}", e),
