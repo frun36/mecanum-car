@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::drive::{Drive, DriveMessage, DriveResponse, Motion, Speed};
 use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response, Recipient};
-use crate::movement_calibration::Calibrator;
+use crate::movement_calibration::{Calibrator, CalibratorMessage};
 use crate::Device;
 
 /// How often heartbeat pings are sent
@@ -22,6 +22,7 @@ pub struct WebSocket {
     hb: Instant,
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
+    calibrator_data: Data<Mutex<Addr<Calibrator>>>,
 }
 
 #[derive(Deserialize)]
@@ -36,11 +37,13 @@ impl WebSocket {
     pub fn new(
         drive_data: Data<Mutex<Addr<Drive>>>,
         hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
+        calibrator_data: Data<Mutex<Addr<Calibrator>>>,
     ) -> Self {
         Self {
             hb: Instant::now(),
             drive_data,
             hc_sr04_data,
+            calibrator_data,
         }
     }
 
@@ -65,33 +68,19 @@ impl WebSocket {
         speed: Speed,
         _ctx: &mut <WebSocket as Actor>::Context,
     ) {
-        let drive_addr = self.drive_data.lock().unwrap().to_owned();
+        let drive_addr = self.drive_data.lock().unwrap();
         drive_addr.do_send(DriveMessage { motion, speed });
     }
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
-        let hc_sr04_addr = self.hc_sr04_data.lock().unwrap().to_owned();
+        let hc_sr04_addr = self.hc_sr04_data.lock().unwrap();
         hc_sr04_addr.do_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())));
     }
 
-    // fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
-    //     let drive = self.drive_data.clone();
-    //     let distance_sensor = self.hc_sr04_data.clone();
-    //     let fut = async move {
-    //         task::spawn_blocking(move || {
-    //             let mut drive = drive.lock().unwrap();
-    //             let mut distance_sensor = distance_sensor.lock().unwrap();
-    //             let mut cal =
-    //                 Calibrator::new(&mut drive, &mut distance_sensor, 0.4, 0.5, 0.1, 300, 2);
-
-    //             cal.calibrate();
-    //         })
-    //         .await
-    //         .unwrap();
-    //     };
-
-    //     ctx.spawn(wrap_future(fut));
-    // }
+    fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
+        let calibrator_addr = self.calibrator_data.lock().unwrap();
+        calibrator_addr.do_send(CalibratorMessage::Start )
+    }
 }
 
 impl Actor for WebSocket {
@@ -133,7 +122,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                         self.measure_distance_handler(ctx);
                     }
                     SocketMessages::CalibrateMovement => {
-                        // self.calibrate_distance_handler(ctx);
+                        self.calibrate_distance_handler(ctx);
                     }
                 };
             }

@@ -52,7 +52,7 @@ impl Actor for Calibrator {
 
 #[derive(Message)]
 #[rtype(result = "()")]
-enum CalibratorMessage {
+pub enum CalibratorMessage {
     Start,
     Stop,
 }
@@ -61,16 +61,20 @@ impl Handler<CalibratorMessage> for Calibrator {
     type Result = ();
 
     fn handle(&mut self, msg: CalibratorMessage, ctx: &mut Self::Context) -> Self::Result {
+        let drive_addr = self.drive_data.lock().unwrap();
+        let hc_sr04_addr = self.hc_sr04_data.lock().unwrap();
         match msg {
             CalibratorMessage::Start => {
-                let hc_sr04_addr = self.hc_sr04_data.lock().unwrap();
+                drive_addr.do_send(DriveMessage {
+                    motion: Motion::Forward,
+                    speed: Speed::Low,
+                });
                 hc_sr04_addr.do_send(HcSr04Message::Multiple(
                     self.measurements_per_repetition,
                     crate::hc_sr04::Recipient::Calibrator(ctx.address()),
                 ));
             }
             CalibratorMessage::Stop => {
-                let drive_addr = self.drive_data.lock().unwrap();
                 drive_addr.do_send(DriveMessage {
                     motion: Motion::Stop,
                     speed: Speed::Low,
