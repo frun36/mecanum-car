@@ -79,7 +79,7 @@ impl WebSocket {
 
     fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
         let calibrator_addr = self.calibrator_data.lock().unwrap();
-        calibrator_addr.do_send(CalibratorMessage::Start )
+        calibrator_addr.do_send(CalibratorMessage::Start)
     }
 }
 

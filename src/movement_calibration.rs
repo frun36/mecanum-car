@@ -2,7 +2,7 @@ use actix::prelude::*;
 use actix_web::web::Data;
 
 use crate::drive::{Drive, DriveMessage, Motion, Speed};
-use crate::hc_sr04::{HcSr04, HcSr04Message, HcSr04Response};
+use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response};
 
 use std::fs::File;
 use std::io::Write;
@@ -94,9 +94,15 @@ impl Handler<HcSr04Response> for Calibrator {
             speed: Speed::Low,
         });
         let result = match msg {
-            HcSr04Response::Ok(d) => format!("{:?}", d),
+            HcSr04Response::Ok(measurement) => match measurement {
+                HcSr04Measurement::Single(d) => format!("{},{}", d.time.as_millis(), d.distance),
+                HcSr04Measurement::Multiple(d_vec) => d_vec
+                    .iter()
+                    .map(|x| format!("{},{}", x.time.as_millis(), x.distance)).collect::<Vec<String>>().join("\n"),
+            },
             HcSr04Response::Err(e) => format!("{}", e),
         };
-        println!("{}", result);
+        let mut file = File::create("measurements/test.csv").unwrap();
+        write!(file, "{}", result).unwrap();
     }
 }
