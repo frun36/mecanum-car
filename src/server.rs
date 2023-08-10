@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::drive::{Drive, DriveMessage, DriveResponse, Motion, Speed};
 use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response, Recipient};
-use crate::movement_calibration::{Calibrator, CalibratorMessage};
+use crate::movement_calibration::{Calibrator, CalibratorMessage, CalibratorParams};
 use crate::Device;
 
 /// How often heartbeat pings are sent
@@ -79,7 +79,7 @@ impl WebSocket {
 
     fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
         let calibrator_addr = self.calibrator_data.lock().unwrap();
-        calibrator_addr.do_send(CalibratorMessage::Start)
+        calibrator_addr.do_send(CalibratorMessage::Start(CalibratorParams::default()))
     }
 }
 

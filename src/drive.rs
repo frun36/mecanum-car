@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use rppal::gpio::{Error, Gpio};
 
 use serde::{Deserialize, Serialize};
@@ -14,6 +16,7 @@ pub enum Speed {
     Low,
     Medium,
     High,
+    Manual(f64),
 }
 
 /// Converts `Speed` values to pwm frequencies
@@ -22,6 +25,7 @@ fn get_speed(speed: Speed) -> f64 {
         Speed::Low => 0.3,
         Speed::Medium => 0.6,
         Speed::High => 1.0,
+        Speed::Manual(v) => v,
     }
 }
 
@@ -39,6 +43,25 @@ pub enum Motion {
     RightRot,
     LeftRot,
     Stop,
+}
+
+impl Display for Motion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let alias = match self {
+            Motion::Forward => "f",
+            Motion::ForwardRight => "fr",
+            Motion::Right => "r",
+            Motion::BackwardRight => "br",
+            Motion::Backward => "b",
+            Motion::BackwardLeft => "bl",
+            Motion::Left => "l",
+            Motion::ForwardLeft => "fl",
+            Motion::RightRot => "rr",
+            Motion::LeftRot => "lr",
+            Motion::Stop => "s",
+        };
+        write!(f, "{}", alias)
+    }
 }
 
 /// Allows control of the motion of a 4-wheeled mecanum robot<br>
@@ -97,7 +120,7 @@ impl Drive {
     }
 
     /// Starts specified `motion` with specified PWM `duty_cycle`
-    pub fn move_robot_pwm_speed(&mut self, motion: Motion, duty_cycle: f64) -> Result<(), Error> {
+    fn move_robot_pwm_speed(&mut self, motion: Motion, duty_cycle: f64) -> Result<(), Error> {
         let motor_speeds = match motion {
             Motion::Forward => [duty_cycle, duty_cycle, duty_cycle, duty_cycle],
             Motion::ForwardRight => [0., duty_cycle, 0., duty_cycle],

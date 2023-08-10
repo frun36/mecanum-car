@@ -62,7 +62,11 @@ async fn ws_connect(
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
     calibrator_data: Data<Mutex<Addr<Calibrator>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    ws::start(WebSocket::new(drive_data, hc_sr04_data, calibrator_data), &req, stream)
+    ws::start(
+        WebSocket::new(drive_data, hc_sr04_data, calibrator_data),
+        &req,
+        stream,
+    )
 }
 
 #[actix_web::main]
@@ -99,7 +103,7 @@ async fn main() -> Result<(), io::Error> {
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
     let hc_sr04_data = Data::new(hc_sr04_mutex);
 
-    let calibrator = Calibrator::new(drive_data.clone(), hc_sr04_data.clone(), 0.0, 0.0, 1., 100, 1);
+    let calibrator = Calibrator::new(drive_data.clone(), hc_sr04_data.clone());
     let calibrator_addr = calibrator.start();
     let calibrator_mutex = Mutex::new(calibrator_addr);
     let calibrator_data = Data::new(calibrator_mutex);

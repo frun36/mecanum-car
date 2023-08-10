@@ -82,6 +82,10 @@ impl HcSr04 {
 
 impl Actor for HcSr04 {
     type Context = Context<Self>;
+
+    fn started(&mut self, _ctx: &mut Self::Context) {
+        println!("HcSr04 actor started");
+    }
 }
 
 pub enum Recipient {
