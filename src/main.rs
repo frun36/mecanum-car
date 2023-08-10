@@ -16,8 +16,6 @@ use drive::Drive;
 use hc_sr04::HcSr04;
 use server::WebSocket;
 
-use crate::movement_calibration::Calibrator;
-
 mod drive;
 mod hc_sr04;
 mod movement_calibration;
@@ -60,13 +58,8 @@ async fn ws_connect(
     stream: web::Payload,
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
-    calibrator_data: Data<Mutex<Addr<Calibrator>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    ws::start(
-        WebSocket::new(drive_data, hc_sr04_data, calibrator_data),
-        &req,
-        stream,
-    )
+    ws::start(WebSocket::new(drive_data, hc_sr04_data), &req, stream)
 }
 
 #[actix_web::main]
@@ -103,17 +96,11 @@ async fn main() -> Result<(), io::Error> {
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
     let hc_sr04_data = Data::new(hc_sr04_mutex);
 
-    let calibrator = Calibrator::new(drive_data.clone(), hc_sr04_data.clone());
-    let calibrator_addr = calibrator.start();
-    let calibrator_mutex = Mutex::new(calibrator_addr);
-    let calibrator_data = Data::new(calibrator_mutex);
-
     // Start the server
     HttpServer::new(move || {
         App::new()
             .app_data(drive_data.clone())
             .app_data(hc_sr04_data.clone())
-            .app_data(calibrator_data.clone())
             .service(index)
             .service(Files::new("/static", "./static").show_files_listing())
             .service(ws_connect)

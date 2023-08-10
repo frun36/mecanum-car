@@ -22,7 +22,7 @@ pub struct WebSocket {
     hb: Instant,
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
-    calibrator_data: Data<Mutex<Addr<Calibrator>>>,
+    calibrator_addr: Option<Addr<Calibrator>>,
 }
 
 #[derive(Deserialize)]
@@ -37,13 +37,12 @@ impl WebSocket {
     pub fn new(
         drive_data: Data<Mutex<Addr<Drive>>>,
         hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
-        calibrator_data: Data<Mutex<Addr<Calibrator>>>,
     ) -> Self {
         Self {
             hb: Instant::now(),
             drive_data,
             hc_sr04_data,
-            calibrator_data,
+            calibrator_addr: None,
         }
     }
 
@@ -77,9 +76,20 @@ impl WebSocket {
         hc_sr04_addr.do_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())));
     }
 
-    fn calibrate_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
-        let calibrator_addr = self.calibrator_data.lock().unwrap();
-        calibrator_addr.do_send(CalibratorMessage::Start(CalibratorParams::default()))
+    fn calibrate_distance_handler(&mut self, _ctx: &mut <Self as Actor>::Context) {
+        // Stop calibration if calibrator already exists
+        if let Some(addr) = &self.calibrator_addr {
+            addr.do_send(CalibratorMessage::Stop);
+            self.calibrator_addr = None;
+            return;
+        }
+        // Create calibrator and start calibration otherwise
+        let calibrator = Calibrator::new(self.drive_data.clone(), self.hc_sr04_data.clone());
+        self.calibrator_addr = Some(calibrator.start());
+        self.calibrator_addr
+            .as_ref()
+            .unwrap()
+            .do_send(CalibratorMessage::Start(CalibratorParams::default()))
     }
 }
 

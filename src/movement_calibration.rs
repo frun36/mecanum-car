@@ -7,8 +7,6 @@ use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response};
 use std::fs::File;
 use std::io::Write;
 use std::sync::Mutex;
-use std::thread;
-use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CalibratorParams {
@@ -79,8 +77,18 @@ impl Calibrator {
 impl Actor for Calibrator {
     type Context = Context<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         println!("Calibrator actor started");
+    }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        let drive_addr = self.drive_data.lock().unwrap();
+        // Stop the robot
+        drive_addr.do_send(DriveMessage {
+            motion: Motion::Stop,
+            speed: Speed::Low,
+        });
+        println!("Calibrator actor stopped");
     }
 }
 
@@ -113,10 +121,7 @@ impl Handler<CalibratorMessage> for Calibrator {
                 ));
             }
             CalibratorMessage::Stop => {
-                drive_addr.do_send(DriveMessage {
-                    motion: Motion::Stop,
-                    speed: Speed::Low,
-                });
+                ctx.stop();
             }
         };
     }
