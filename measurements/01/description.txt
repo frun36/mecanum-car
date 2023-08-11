@@ -1,0 +1,6 @@
+battery voltage: 7.77V
+min: 0.3
+max: 1.0
+step: 0.1
+repetitions: 2
+measurements per repetition: 200
