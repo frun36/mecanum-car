@@ -84,12 +84,14 @@ impl WebSocket {
             return;
         }
         // Create calibrator and start calibration otherwise
-        let calibrator = Calibrator::new(self.drive_data.clone(), self.hc_sr04_data.clone());
+        let params = CalibratorParams::new(0.3, 1.0, 0.1, 200, 2);
+        let calibrator =
+            Calibrator::new(self.drive_data.clone(), self.hc_sr04_data.clone(), params);
         self.calibrator_addr = Some(calibrator.start());
         self.calibrator_addr
             .as_ref()
             .unwrap()
-            .do_send(CalibratorMessage::Start(CalibratorParams::default()))
+            .do_send(CalibratorMessage::Start(params))
     }
 }
 

@@ -1,4 +1,6 @@
+use actix::fut::wrap_future;
 use actix::prelude::*;
+use actix_web::rt::time;
 use actix_web::web::Data;
 
 use crate::drive::{Drive, DriveMessage, Motion, Speed};
@@ -7,32 +9,15 @@ use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response};
 use std::fs::File;
 use std::io::Write;
 use std::sync::Mutex;
+use std::time::Duration;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct CalibratorParams {
     min_duty_cycle: f64,
     max_duty_cycle: f64,
     step: f64,
     measurements_per_repetition: usize,
     repetitions: usize,
-    curr_motion: Motion,
-    curr_duty_cycle: f64,
-    curr_repetition: usize,
-}
-
-impl Default for CalibratorParams {
-    fn default() -> Self {
-        Self {
-            min_duty_cycle: 0.5,
-            max_duty_cycle: 1.0,
-            step: 0.1,
-            measurements_per_repetition: 500,
-            repetitions: 1,
-            curr_motion: Motion::Forward,
-            curr_duty_cycle: 0.5,
-            curr_repetition: 0,
-        }
-    }
 }
 
 impl CalibratorParams {
@@ -49,8 +34,23 @@ impl CalibratorParams {
             step,
             measurements_per_repetition,
             repetitions,
-            curr_duty_cycle: min_duty_cycle,
-            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug)]
+struct CalibratorState {
+    motion: Motion,
+    duty_cycle: f64,
+    repetition: usize,
+}
+
+impl CalibratorState {
+    fn new(min_duty_cycle: f64) -> Self {
+        Self {
+            motion: Motion::Forward,
+            duty_cycle: min_duty_cycle,
+            repetition: 0,
         }
     }
 }
@@ -59,17 +59,20 @@ pub struct Calibrator {
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
     params: CalibratorParams,
+    state: CalibratorState,
 }
 
 impl Calibrator {
     pub fn new(
         drive_data: Data<Mutex<Addr<Drive>>>,
         hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
+        params: CalibratorParams,
     ) -> Self {
         Self {
             drive_data,
             hc_sr04_data,
-            params: CalibratorParams::default(),
+            params,
+            state: CalibratorState::new(params.min_duty_cycle),
         }
     }
 }
@@ -108,11 +111,11 @@ impl Handler<CalibratorMessage> for Calibrator {
         match msg {
             CalibratorMessage::Start(params) => {
                 self.params = params;
-                println!("Performing calibration: {:?}", self.params);
+                println!("Performing calibration: {:?}", self.state);
                 // Move robot
                 drive_addr.do_send(DriveMessage {
-                    motion: self.params.curr_motion,
-                    speed: Speed::Manual(self.params.curr_duty_cycle),
+                    motion: self.state.motion,
+                    speed: Speed::Manual(self.state.duty_cycle),
                 });
                 // Start measurement
                 hc_sr04_addr.do_send(HcSr04Message::Multiple(
@@ -152,29 +155,30 @@ impl Handler<HcSr04Response> for Calibrator {
         // Save the result to file
         let mut file = File::create(format!(
             "measurements/{}_{:.2}_{:02}.csv",
-            self.params.curr_motion, self.params.curr_duty_cycle, self.params.curr_repetition
+            self.state.motion, self.state.duty_cycle, self.state.repetition
         ))
         .unwrap();
         write!(file, "{}", result).unwrap();
         // Update params for next measurement
-        self.params.curr_motion = match self.params.curr_motion {
+        self.state.motion = match self.state.motion {
             Motion::Forward => Motion::Backward,
             Motion::Backward => {
-                self.params.curr_repetition += 1;
+                self.state.repetition += 1;
                 Motion::Forward
             }
             _ => panic!("Invalid calibration motion"),
         };
         // Check if all repetitions were done
-        if self.params.curr_repetition >= self.params.repetitions {
-            self.params.curr_repetition = 0;
-            self.params.curr_duty_cycle += self.params.step;
+        if self.state.repetition >= self.params.repetitions {
+            self.state.repetition = 0;
+            self.state.duty_cycle += self.params.step;
         }
         // Return if measurement is completed
-        if self.params.curr_duty_cycle > self.params.max_duty_cycle {
+        if self.state.duty_cycle > self.params.max_duty_cycle {
             return;
         }
-        // Send message for next measurement if not
+        // Send message after some time for next measurement if not
+        ctx.wait(wrap_future(time::sleep(Duration::from_millis(3000))));
         ctx.address().do_send(CalibratorMessage::Start(self.params));
     }
 }
