@@ -2,6 +2,7 @@ use actix::fut::wrap_future;
 use actix::prelude::*;
 use actix_web::rt::time;
 use actix_web::web::Data;
+use serde::Deserialize;
 
 use crate::drive::{Drive, DriveMessage, Motion, Speed};
 use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response};
@@ -11,7 +12,7 @@ use std::io::Write;
 use std::sync::Mutex;
 use std::time::Duration;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Deserialize)]
 pub struct CalibratorParams {
     min_duty_cycle: f64,
     max_duty_cycle: f64,
@@ -20,23 +21,23 @@ pub struct CalibratorParams {
     repetitions: usize,
 }
 
-impl CalibratorParams {
-    pub fn new(
-        min_duty_cycle: f64,
-        max_duty_cycle: f64,
-        step: f64,
-        measurements_per_repetition: usize,
-        repetitions: usize,
-    ) -> CalibratorParams {
-        Self {
-            min_duty_cycle,
-            max_duty_cycle,
-            step,
-            measurements_per_repetition,
-            repetitions,
-        }
-    }
-}
+// impl CalibratorParams {
+//     pub fn new(
+//         min_duty_cycle: f64,
+//         max_duty_cycle: f64,
+//         step: f64,
+//         measurements_per_repetition: usize,
+//         repetitions: usize,
+//     ) -> CalibratorParams {
+//         Self {
+//             min_duty_cycle,
+//             max_duty_cycle,
+//             step,
+//             measurements_per_repetition,
+//             repetitions,
+//         }
+//     }
+// }
 
 #[derive(Debug)]
 struct CalibratorState {
@@ -95,8 +96,9 @@ impl Actor for Calibrator {
     }
 }
 
-#[derive(Message)]
+#[derive(Deserialize, Message)]
 #[rtype(result = "()")]
+#[serde(tag = "variant")]
 pub enum CalibratorMessage {
     Start(CalibratorParams),
     Stop,

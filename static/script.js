@@ -46,14 +46,14 @@ function addMoveButtonEvent(id, motion) {
     const button = document.getElementById(id);
 
     const message = {
-        variant: "Move",
+        message: "Move",
         motion: motion,
         speed: "Medium",
     };
     const messageJson = JSON.stringify(message);
 
     const stopMessage = {
-        variant: "Move",
+        message: "Move",
         motion: "Stop",
         speed: "Low",
     }
@@ -77,15 +77,45 @@ buttons = ["forward-left", "forward", "forward-right", "right", "backward-right"
 // Add event listeners to the buttons
 buttons.forEach(id => addMoveButtonEvent(id, snakeToPascal(id)));
 
-document.getElementById("measure-distance").addEventListener("click", () => socket.send(JSON.stringify({ variant: "MeasureDistance" })));
-document.getElementById("calibrate-movement-start").addEventListener("click", () => socket.send(JSON.stringify({ variant: "CalibrateMovement" })));
+document.getElementById("measure-distance").addEventListener("click", () => socket.send(JSON.stringify({ message: "MeasureDistance" })));
+
+function calibrateMovementStart() {
+    minDutyCycle = document.getElementById("min-duty-cycle").value;
+    maxDutyCycle = document.getElementById("max-duty-cycle").value;
+    step = document.getElementById("step").value;
+    measurementsPerRepetition = document.getElementById("measurements-per-repetition").value;
+    repetitions = document.getElementById("repetitions").value;
+
+    message = JSON.stringify({
+        message: "CalibrateMovement",
+        variant: "Start",
+        min_duty_cycle: parseFloat(minDutyCycle),
+        max_duty_cycle: parseFloat(maxDutyCycle),
+        step: parseFloat(step),
+        measurements_per_repetition: parseInt(measurementsPerRepetition),
+        repetitions: parseInt(repetitions)
+    });
+    socket.send(message);
+    document.getElementById("calibrate-movement-stop").disabled = false;
+}
+
+document.getElementById("calibrate-movement-start").addEventListener("click", () => calibrateMovementStart());
+document.getElementById("calibrate-movement-stop").addEventListener("click", () => {
+    socket.send(JSON.stringify({
+        message: "CalibrateMovement",
+        variant: "Stop"
+    }));
+    document.getElementById("calibrate-movement-stop").disabled = true;
+});
+
+
 // Start the socket connection
 connectWebSocket();
 
 socket.addEventListener("message", (msg) => {
     // console.log(msg.data);
     msg = JSON.parse(msg.data);
-    switch (msg.variant) {
+    switch (msg.message) {
         case "Move":
             console.log(msg.description);
             break;
