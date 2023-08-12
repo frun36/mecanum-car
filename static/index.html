@@ -31,14 +31,27 @@
             <button class="right-rotate-button" id="right-rot">Rotate Right</button>
         </div>
     </div>
-    <div class="control-panel">
-        <div class="distance-measurement">
-            <button id="measure-distance">Measure Distance</button>
-            <p id="distance-label">?</p>
-        </div>
-        <div class="calibrator">
-            <button id="calibrate-movement">Calibrate movement</button>
-        </div>
+    <div class="distance-measurement">
+        <button id="measure-distance">Measure Distance</button>
+        <p id="distance-label">?</p>
+    </div>
+    <div class="calibrator">
+        <label>Min duty cycle: </label>
+        <input type="number" id="min-duty-cycle" min="0.0" max="1.0" step="0.01" value="0.3">
+
+        <label>Max duty cycle: </label>
+        <input type="number" id="max-duty-cycle" min="0.0" max="1.0" step="0.01" value="1.0">
+
+        <label>Step: </label>
+        <input type="number" id="step" min="0.0" max="1.0" step="0.01" value="0.05">
+
+        <label>Measurements per repetition: </label>
+        <input type="number" id="measurements-per-repetition" min="0" value="200">
+
+        <label>Repetitions: </label>
+        <input type="number" id="repetitions" min="0" value="3">
+        <button id="calibrate-movement-start">Calibrate movement</button>
+        <button id="calibrate-movement-stop" disabled="true">Stop calibration</button>
     </div>
 
     <script src="static/script.js"></script>

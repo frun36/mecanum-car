@@ -78,7 +78,7 @@ buttons = ["forward-left", "forward", "forward-right", "right", "backward-right"
 buttons.forEach(id => addMoveButtonEvent(id, snakeToPascal(id)));
 
 document.getElementById("measure-distance").addEventListener("click", () => socket.send(JSON.stringify({ variant: "MeasureDistance" })));
-document.getElementById("calibrate-movement").addEventListener("click", () => socket.send(JSON.stringify({ variant: "CalibrateMovement" })));
+document.getElementById("calibrate-movement-start").addEventListener("click", () => socket.send(JSON.stringify({ variant: "CalibrateMovement" })));
 // Start the socket connection
 connectWebSocket();
 
