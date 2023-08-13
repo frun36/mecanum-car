@@ -32,18 +32,18 @@
         </div>
         <div>
             <label>Speed</label>
-            <input type="range" id="speed" value="50" oninput="{
+            <input type="range" id="speed" min="30" value="50" oninput="{
                 duty_cycle = this.value / 100;
                 document.getElementById('duty-cycle-label').value = duty_cycle;
-                document.getElementById('velocity-label').value = Math.pow(Math.log(0.3474*duty_cycle+0.9077), 0.25) + ' m/s';
-                document.getElementById('rpm-label').value = 60*Math.pow(Math.log(0.3474*duty_cycle+0.9077), 0.25)*4 + ' rpm';
+                document.getElementById('velocity-label').value = Math.pow(Math.log(0.3474*duty_cycle+0.9077), 0.25).toFixed(2) + ' m/s';
+                document.getElementById('rpm-label').value = (60*Math.pow(Math.log(0.3474*duty_cycle+0.9077), 0.25)*4).toFixed(2) + ' rpm';
             }">
             <br>
             <output id = "duty-cycle-label">0.5</output>
             <br>
-            <output id = "velocity-label">0.5289079589110226 m/s</output>
+            <output id = "velocity-label">0.53 m/s</output>
             <br>
-            <output id = "rpm-label">126.93791013864542 rpm</output>
+            <output id = "rpm-label">126.94 rpm</output>
         </div>
     </div>
     <div class="distance-measurement">
