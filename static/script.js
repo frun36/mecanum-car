@@ -42,15 +42,22 @@ const snakeToPascal = str =>
             .replace('_', '')
     );
 
-function addMoveButtonEvent(id, motion) {
-    const button = document.getElementById(id);
-
+function sendMoveMessage(motion) {
+    speed_value = parseFloat(document.getElementById("speed").value) / 100;
+    console.log(speed_value);
     const message = {
         message: "Move",
         motion: motion,
-        speed: "Medium",
+        speed: {
+            Manual: speed_value,
+        },
     };
     const messageJson = JSON.stringify(message);
+    socket.send(messageJson)
+}
+
+function addMoveButtonEvent(id, motion) {
+    const button = document.getElementById(id);
 
     const stopMessage = {
         message: "Move",
@@ -60,12 +67,12 @@ function addMoveButtonEvent(id, motion) {
     const stopMessageJson = JSON.stringify(stopMessage);
 
     // Desktop
-    button.addEventListener("mousedown", () => socket.send(messageJson));
+    button.addEventListener("mousedown", () => sendMoveMessage(motion));
     button.addEventListener("mouseup", () => socket.send(stopMessageJson));
     button.addEventListener("mouseout", () => socket.send(stopMessageJson));
 
     // Mobile
-    button.addEventListener("touchstart", () => socket.send(messageJson));
+    button.addEventListener("touchstart", () => sendMoveMessage(motion));
     button.addEventListener("touchend", () => socket.send(stopMessageJson));
 
     console.log("Added move button event " + motion + " for button " + id);

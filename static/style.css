@@ -23,6 +23,7 @@ h1 {
 .move-button-container {
     display: flex;
     justify-content: center;
+    flex-direction: column;
     padding: 3px;
 }
 
