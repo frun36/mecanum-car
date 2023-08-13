@@ -120,9 +120,9 @@ document.getElementById("calibrate-movement-stop").addEventListener("click", () 
 connectWebSocket();
 
 socket.addEventListener("message", (msg) => {
-    // console.log(msg.data);
     msg = JSON.parse(msg.data);
-    switch (msg.message) {
+    // console.log(msg)
+    switch (msg.variant) {
         case "Move":
             console.log(msg.description);
             break;
