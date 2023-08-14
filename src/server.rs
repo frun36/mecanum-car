@@ -7,7 +7,7 @@ use actix_web_actors::ws;
 
 use serde::{Deserialize, Serialize};
 
-use crate::drive::{Drive, DriveMessage, DriveResponse, Motion, Speed};
+use crate::drive::{Drive, DriveMessage, DriveResponse};
 use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response, Recipient};
 use crate::movement_calibration::{Calibrator, CalibratorMessage};
 use crate::Device;
@@ -28,7 +28,7 @@ pub struct WebSocket {
 #[derive(Deserialize)]
 #[serde(tag = "message")]
 enum SocketMessages {
-    Move { motion: Motion, speed: Speed },
+    Move(DriveMessage),
     MeasureDistance,
     CalibrateMovement(CalibratorMessage),
 }
@@ -63,12 +63,11 @@ impl WebSocket {
 
     fn motion_handler(
         &mut self,
-        motion: Motion,
-        speed: Speed,
+        message: DriveMessage,
         _ctx: &mut <WebSocket as Actor>::Context,
     ) {
         let drive_addr = self.drive_data.lock().unwrap();
-        drive_addr.do_send(DriveMessage::Enable { motion, speed });
+        drive_addr.do_send(message);
     }
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -134,8 +133,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                 let message: SocketMessages =
                     serde_json::from_str(&text).expect("Failed to deserialize message");
                 match message {
-                    SocketMessages::Move { motion, speed } => {
-                        self.motion_handler(motion, speed, ctx)
+                    SocketMessages::Move(message) => {
+                        self.motion_handler(message, ctx)
                     }
                     SocketMessages::MeasureDistance => {
                         self.measure_distance_handler(ctx);

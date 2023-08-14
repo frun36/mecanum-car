@@ -34,6 +34,7 @@ reconnectButton.addEventListener('click', function () {
 
 // Move button events
 
+// Convert button id to motion name
 const snakeToPascal = str =>
     str.toLowerCase().replace(/(^[a-z])|([-_][a-z])/g, group =>
         group
@@ -42,11 +43,13 @@ const snakeToPascal = str =>
             .replace('_', '')
     );
 
+// Called when move button is clicked
 function sendMoveMessage(motion) {
     speed_value = parseFloat(document.getElementById("speed").value) / 100;
     console.log(speed_value);
     const message = {
         message: "Move",
+        variant: "Enable",
         motion: motion,
         speed: {
             Manual: speed_value,
@@ -56,13 +59,13 @@ function sendMoveMessage(motion) {
     socket.send(messageJson)
 }
 
+// Adds events to move buttons
 function addMoveButtonEvent(id, motion) {
     const button = document.getElementById(id);
 
     const stopMessage = {
         message: "Move",
-        motion: "Stop",
-        speed: "Low",
+        variant: "Disable",
     }
     const stopMessageJson = JSON.stringify(stopMessage);
 
@@ -131,4 +134,34 @@ socket.addEventListener("message", (msg) => {
             document.getElementById("distance-label").innerHTML = msg.measurement + " m";
             break;
     }
+});
+
+document.getElementById("move-distance").addEventListener("click", () => {
+    speed_value = parseFloat(document.getElementById("speed").value) / 100;
+    const message = {
+        message: "Move",
+        variant: "Move",
+        motion: "Forward",
+        speed: {
+            Manual: speed_value,
+        },
+        distance: 0.5
+    };
+    const messageJson = JSON.stringify(message);
+    socket.send(messageJson);
+});
+
+document.getElementById("rotate-angle").addEventListener("click", () => {
+    speed_value = parseFloat(document.getElementById("speed").value) / 100;
+    const message = {
+        message: "Move",
+        variant: "Rotate",
+        motion: "RightRot",
+        speed: {
+            Manual: speed_value,
+        },
+        angle: 360.0
+    };
+    const messageJson = JSON.stringify(message);
+    socket.send(messageJson);
 });

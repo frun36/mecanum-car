@@ -179,9 +179,14 @@ impl Drive {
         }
         let time_s = distance / speed.get_velocity();
         let time = Duration::from_secs_f64(time_s);
-        self.enable(motion, speed)?;
-        ctx.wait(wrap_future(time::sleep(time)));
-        self.enable(Motion::Stop, speed)?;
+        let addr = ctx.address();
+        let fut = async move {
+            addr.do_send(DriveMessage::Enable { motion, speed });
+            time::sleep(time).await;
+            addr.do_send(DriveMessage::Disable);
+        };
+
+        ctx.spawn(wrap_future(fut));
         Ok(())
     }
 
@@ -201,9 +206,14 @@ impl Drive {
         let distance = 2. * PI * ROBOT_RADIUS * angle / 360.;
         let time_s = distance / speed.get_velocity();
         let time = Duration::from_secs_f64(time_s);
-        self.enable(motion, speed)?;
-        ctx.wait(wrap_future(time::sleep(time)));
-        self.enable(Motion::Stop, speed)?;
+        let addr = ctx.address();
+        let fut = async move {
+            addr.do_send(DriveMessage::Enable { motion, speed });
+            time::sleep(time).await;
+            addr.do_send(DriveMessage::Disable);
+        };
+        
+        ctx.spawn(wrap_future(fut));
         Ok(())
     }
 
@@ -237,8 +247,9 @@ impl Device for Drive {
     }
 }
 
-#[derive(Message)]
+#[derive(Deserialize, Message)]
 #[rtype(result = "()")]
+#[serde(tag = "variant")]
 pub enum DriveMessage {
     Enable {
         motion: Motion,
