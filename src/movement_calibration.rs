@@ -88,10 +88,7 @@ impl Actor for Calibrator {
     fn stopped(&mut self, _ctx: &mut Self::Context) {
         let drive_addr = self.drive_data.lock().unwrap();
         // Stop the robot
-        drive_addr.do_send(DriveMessage {
-            motion: Motion::Stop,
-            speed: Speed::Low,
-        });
+        drive_addr.do_send(DriveMessage::Disable);
         println!("Calibrator actor stopped");
     }
 }
@@ -115,7 +112,7 @@ impl Handler<CalibratorMessage> for Calibrator {
                 self.params = params;
                 println!("Performing calibration: {:?}", self.state);
                 // Move robot
-                drive_addr.do_send(DriveMessage {
+                drive_addr.do_send(DriveMessage::Enable {
                     motion: self.state.motion,
                     speed: Speed::Manual(self.state.duty_cycle),
                 });
@@ -138,7 +135,7 @@ impl Handler<HcSr04Response> for Calibrator {
     fn handle(&mut self, msg: HcSr04Response, ctx: &mut Self::Context) -> Self::Result {
         let drive_addr = self.drive_data.lock().unwrap();
         // Stop the robot
-        drive_addr.do_send(DriveMessage {
+        drive_addr.do_send(DriveMessage::Enable {
             motion: Motion::Stop,
             speed: Speed::Low,
         });

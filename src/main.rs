@@ -19,6 +19,7 @@ use server::WebSocket;
 mod drive;
 mod hc_sr04;
 mod movement_calibration;
+mod distance_scan;
 mod server;
 
 const MOTOR0_FWD: u8 = 4;

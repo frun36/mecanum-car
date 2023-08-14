@@ -68,7 +68,7 @@ impl WebSocket {
         _ctx: &mut <WebSocket as Actor>::Context,
     ) {
         let drive_addr = self.drive_data.lock().unwrap();
-        drive_addr.do_send(DriveMessage { motion, speed });
+        drive_addr.do_send(DriveMessage::Enable { motion, speed });
     }
 
     fn measure_distance_handler(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -179,7 +179,22 @@ impl Handler<DriveResponse> for WebSocket {
     fn handle(&mut self, msg: DriveResponse, ctx: &mut Self::Context) -> Self::Result {
         let response = serde_json::to_string(&SocketResponses::Move {
             description: match msg {
-                DriveResponse::Ok(m) => format!("Moving {:?} with {:?} speed", m.motion, m.speed),
+                DriveResponse::Ok(m) => match m {
+                    DriveMessage::Enable { motion, speed } => {
+                        format!("Moving {:?} with {:?} speed", motion, speed)
+                    }
+                    DriveMessage::Disable => "Stopped".to_string(),
+                    DriveMessage::Move {
+                        motion,
+                        speed,
+                        distance,
+                    } => format!("Moving {:?} {} m with {:?} speed", motion, distance, speed),
+                    DriveMessage::Rotate {
+                        motion,
+                        speed,
+                        angle,
+                    } => format!("Rotating {:?} {} deg with {:?} speed", motion, angle, speed),
+                },
                 DriveResponse::Err(e) => format!("Drive error: {:?}", e),
             },
         })
