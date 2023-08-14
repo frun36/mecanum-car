@@ -1,5 +1,6 @@
 use actix::prelude::*;
 
+use crate::distance_scan::Scanner;
 use crate::movement_calibration::Calibrator;
 use crate::server::WebSocket;
 
@@ -91,6 +92,7 @@ impl Actor for HcSr04 {
 pub enum Recipient {
     WebSocket(Addr<WebSocket>),
     Calibrator(Addr<Calibrator>),
+    Scanner(Addr<Scanner>)
 }
 
 #[derive(Message)]
@@ -126,6 +128,7 @@ impl Handler<HcSr04Message> for HcSr04 {
         match recipient {
             Recipient::WebSocket(addr) => addr.do_send(response),
             Recipient::Calibrator(addr) => addr.do_send(response),
+            Recipient::Scanner(addr) => addr.do_send(response),
         };
     }
 }

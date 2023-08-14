@@ -11,8 +11,8 @@ use crate::{server::WebSocket, Device};
 
 mod motor;
 
-const WHEEL_CIRCUMFERENCE: f64 = 0.25; // in meters
-const ROBOT_RADIUS: f64 = 0.11; // in meters
+pub const WHEEL_CIRCUMFERENCE: f64 = 0.25; // in meters
+pub const ROBOT_RADIUS: f64 = 0.11; // in meters
 
 /// Provides simple API for speed control
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
