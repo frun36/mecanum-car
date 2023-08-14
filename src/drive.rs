@@ -10,6 +10,9 @@ use crate::{server::WebSocket, Device};
 
 mod motor;
 
+const WHEEL_CIRCUMFERENCE: f64 = 0.25; // in meters
+const ROBOT_RADIUS: f64 = 0.11; // in meters
+
 /// Provides simple API for speed control
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum Speed {
@@ -19,13 +22,27 @@ pub enum Speed {
     Manual(f64),
 }
 
-/// Converts `Speed` values to pwm frequencies
-fn get_speed(speed: Speed) -> f64 {
-    match speed {
-        Speed::Low => 0.3,
-        Speed::Medium => 0.6,
-        Speed::High => 1.0,
-        Speed::Manual(v) => v,
+impl Speed {
+    /// Converts `Speed` values to pwm frequencies
+    pub fn get_duty_cycle(&self) -> f64 {
+        match self {
+            Speed::Low => 0.3,
+            Speed::Medium => 0.6,
+            Speed::High => 1.0,
+            Speed::Manual(v) => *v,
+        }
+    }
+
+    /// Converts `Speed` values to approximate robot velocity
+    pub fn get_velocity(&self) -> f64 {
+        let duty_cycle = self.get_duty_cycle();
+        f64::powf(f64::ln(0.3474 * duty_cycle + 0.9077), 0.25)
+    }
+
+    /// Converts `Speed` values to approximate wheel rpm
+    pub fn get_rpm(&self) -> f64 {
+        let velocity = self.get_velocity();
+        60. * velocity / WHEEL_CIRCUMFERENCE
     }
 }
 
@@ -140,7 +157,7 @@ impl Drive {
 
     /// Starts specified `motion` with specified `speed`
     pub fn move_robot(&mut self, motion: Motion, speed: Speed) -> Result<(), Error> {
-        let duty_cycle = get_speed(speed);
+        let duty_cycle = speed.get_duty_cycle();
         self.move_robot_pwm_speed(motion, duty_cycle)?;
         Ok(())
     }
