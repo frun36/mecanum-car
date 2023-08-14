@@ -193,6 +193,7 @@ impl Drive {
     /// Rotate robot with `motion` a specified `angle` with specified `speed`. Wildly inaccurate:
     /// * Based only on forward/backward measurements,
     /// * Doesn't take into account the time it takes the motors to accelerate
+    /// Angle can be calibrated manually using the frontend `Slip` slider
     fn rotate_angle(
         &mut self,
         ctx: &mut <Self as Actor>::Context,

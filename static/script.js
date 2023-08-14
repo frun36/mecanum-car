@@ -26,11 +26,8 @@ function connectWebSocket() {
     };
 }
 
-// Reconnect button event listener
-reconnectButton.addEventListener('click', function () {
-    connectWebSocket();
-});
-
+// Start the socket connection
+connectWebSocket();
 
 // Move button events
 
@@ -104,6 +101,11 @@ function addMoveButtonEvent(id, motion) {
 
 // Add event listeners to buttons
 
+// Reconnect button
+reconnectButton.addEventListener('click', function () {
+    connectWebSocket();
+});
+
 // Move buttons
 move_buttons = ["forward-left", "forward", "forward-right", "right", "backward-right",
     "backward", "backward-left", "left", "left-rot", "right-rot", "stop"];
@@ -148,7 +150,7 @@ document.getElementById("rotate-angle").addEventListener("click", () => {
         speed: {
             Manual: speed_value,
         },
-        angle: 360.0
+        angle: 360.0 * (1 + document.getElementById("rotation-slip").value * 0.01)
     };
     const messageJson = JSON.stringify(message);
     socket.send(messageJson);
@@ -167,6 +169,3 @@ socket.addEventListener("message", (msg) => {
             break;
     }
 });
-
-// Start the socket connection
-connectWebSocket();

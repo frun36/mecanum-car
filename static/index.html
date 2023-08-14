@@ -71,6 +71,11 @@
 
     <button id="move-distance">Move forward 0.5 m</button>
     <button id="rotate-angle">Rotate 360 deg</button>
+    <label>Slip </label>
+    <input type="range" id="rotation-slip" value="0" oninput="{
+        this.nextElementSibling.value = (this.value * 0.01).toFixed(2);
+    }">
+    <output>0</output>
 
     <script src="static/script.js"></script>
 </body>
