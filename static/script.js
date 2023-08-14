@@ -59,6 +59,27 @@ function sendMoveMessage(motion) {
     socket.send(messageJson)
 }
 
+// Called when Calibrate movement button is clicked
+function calibrateMovementStart() {
+    minDutyCycle = document.getElementById("min-duty-cycle").value;
+    maxDutyCycle = document.getElementById("max-duty-cycle").value;
+    step = document.getElementById("step").value;
+    measurementsPerRepetition = document.getElementById("measurements-per-repetition").value;
+    repetitions = document.getElementById("repetitions").value;
+
+    message = JSON.stringify({
+        message: "CalibrateMovement",
+        variant: "Start",
+        min_duty_cycle: parseFloat(minDutyCycle),
+        max_duty_cycle: parseFloat(maxDutyCycle),
+        step: parseFloat(step),
+        measurements_per_repetition: parseInt(measurementsPerRepetition),
+        repetitions: parseInt(repetitions)
+    });
+    socket.send(message);
+    document.getElementById("calibrate-movement-stop").disabled = false;
+}
+
 // Adds events to move buttons
 function addMoveButtonEvent(id, motion) {
     const button = document.getElementById(id);
@@ -81,34 +102,17 @@ function addMoveButtonEvent(id, motion) {
     console.log("Added move button event " + motion + " for button " + id);
 }
 
-buttons = ["forward-left", "forward", "forward-right", "right", "backward-right",
+// Add event listeners to buttons
+
+// Move buttons
+move_buttons = ["forward-left", "forward", "forward-right", "right", "backward-right",
     "backward", "backward-left", "left", "left-rot", "right-rot", "stop"];
+move_buttons.forEach(id => addMoveButtonEvent(id, snakeToPascal(id)));
 
-// Add event listeners to the buttons
-buttons.forEach(id => addMoveButtonEvent(id, snakeToPascal(id)));
-
+// Measure distance button
 document.getElementById("measure-distance").addEventListener("click", () => socket.send(JSON.stringify({ message: "MeasureDistance" })));
 
-function calibrateMovementStart() {
-    minDutyCycle = document.getElementById("min-duty-cycle").value;
-    maxDutyCycle = document.getElementById("max-duty-cycle").value;
-    step = document.getElementById("step").value;
-    measurementsPerRepetition = document.getElementById("measurements-per-repetition").value;
-    repetitions = document.getElementById("repetitions").value;
-
-    message = JSON.stringify({
-        message: "CalibrateMovement",
-        variant: "Start",
-        min_duty_cycle: parseFloat(minDutyCycle),
-        max_duty_cycle: parseFloat(maxDutyCycle),
-        step: parseFloat(step),
-        measurements_per_repetition: parseInt(measurementsPerRepetition),
-        repetitions: parseInt(repetitions)
-    });
-    socket.send(message);
-    document.getElementById("calibrate-movement-stop").disabled = false;
-}
-
+// Calibrate distance
 document.getElementById("calibrate-movement-start").addEventListener("click", () => calibrateMovementStart());
 document.getElementById("calibrate-movement-stop").addEventListener("click", () => {
     socket.send(JSON.stringify({
@@ -118,24 +122,7 @@ document.getElementById("calibrate-movement-stop").addEventListener("click", () 
     document.getElementById("calibrate-movement-stop").disabled = true;
 });
 
-
-// Start the socket connection
-connectWebSocket();
-
-socket.addEventListener("message", (msg) => {
-    msg = JSON.parse(msg.data);
-    // console.log(msg)
-    switch (msg.variant) {
-        case "Move":
-            console.log(msg.description);
-            break;
-        case "MeasureDistance":
-            console.log(msg.measurement);
-            document.getElementById("distance-label").innerHTML = msg.measurement + " m";
-            break;
-    }
-});
-
+// Move distance
 document.getElementById("move-distance").addEventListener("click", () => {
     speed_value = parseFloat(document.getElementById("speed").value) / 100;
     const message = {
@@ -151,6 +138,7 @@ document.getElementById("move-distance").addEventListener("click", () => {
     socket.send(messageJson);
 });
 
+// Rotate angle
 document.getElementById("rotate-angle").addEventListener("click", () => {
     speed_value = parseFloat(document.getElementById("speed").value) / 100;
     const message = {
@@ -165,3 +153,20 @@ document.getElementById("rotate-angle").addEventListener("click", () => {
     const messageJson = JSON.stringify(message);
     socket.send(messageJson);
 });
+
+socket.addEventListener("message", (msg) => {
+    msg = JSON.parse(msg.data);
+    // console.log(msg)
+    switch (msg.variant) {
+        case "Move":
+            console.log(msg.description);
+            break;
+        case "MeasureDistance":
+            console.log(msg.measurement);
+            document.getElementById("distance-label").innerHTML = msg.measurement + " m";
+            break;
+    }
+});
+
+// Start the socket connection
+connectWebSocket();
