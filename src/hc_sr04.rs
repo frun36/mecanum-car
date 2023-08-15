@@ -52,7 +52,9 @@ impl HcSr04 {
         thread::sleep(Duration::from_micros(10));
         self.trig.set_low();
 
-        while self.echo.poll_interrupt(false, None)? != Some(Level::High) {}
+        while self.echo.poll_interrupt(false, None)? != Some(Level::High) {
+            // println!("Mysterious first loop")
+        }
         let instant = Instant::now();
 
         if self.echo.poll_interrupt(false, Some(self.timeout))? != Some(Level::Low) {
@@ -84,7 +86,8 @@ impl HcSr04 {
 impl Actor for HcSr04 {
     type Context = Context<Self>;
 
-    fn started(&mut self, _ctx: &mut Self::Context) {
+    fn started(&mut self, ctx: &mut Self::Context) {
+        ctx.set_mailbox_capacity(1024);
         println!("HcSr04 actor started");
     }
 }
@@ -92,7 +95,7 @@ impl Actor for HcSr04 {
 pub enum Recipient {
     WebSocket(Addr<WebSocket>),
     Calibrator(Addr<Calibrator>),
-    Scanner(Addr<Scanner>)
+    Scanner(Addr<Scanner>),
 }
 
 #[derive(Message)]

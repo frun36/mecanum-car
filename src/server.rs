@@ -7,6 +7,7 @@ use actix_web_actors::ws;
 
 use serde::{Deserialize, Serialize};
 
+use crate::distance_scan::{Scanner, ScannerMessage};
 use crate::drive::{Drive, DriveMessage, DriveResponse};
 use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response, Recipient};
 use crate::movement_calibration::{Calibrator, CalibratorMessage};
@@ -23,14 +24,16 @@ pub struct WebSocket {
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
     calibrator_addr: Option<Addr<Calibrator>>,
+    scanner_addr: Option<Addr<Scanner>>,
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "message")]
-enum SocketMessages {
+enum SocketMessage {
     Move(DriveMessage),
     MeasureDistance,
     CalibrateMovement(CalibratorMessage),
+    ScanDistance(ScannerMessage),
 }
 
 impl WebSocket {
@@ -43,6 +46,7 @@ impl WebSocket {
             drive_data,
             hc_sr04_data,
             calibrator_addr: None,
+            scanner_addr: None,
         }
     }
 
@@ -61,11 +65,7 @@ impl WebSocket {
         });
     }
 
-    fn motion_handler(
-        &mut self,
-        message: DriveMessage,
-        _ctx: &mut <WebSocket as Actor>::Context,
-    ) {
+    fn motion_handler(&mut self, message: DriveMessage, _ctx: &mut <WebSocket as Actor>::Context) {
         let drive_addr = self.drive_data.lock().unwrap();
         drive_addr.do_send(message);
     }
@@ -75,25 +75,59 @@ impl WebSocket {
         hc_sr04_addr.do_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())));
     }
 
-    fn calibrate_distance_handler(
-        &mut self,
-        _ctx: &mut <Self as Actor>::Context,
-        calibrator_msg: CalibratorMessage,
-    ) {
-        match calibrator_msg {
+    fn calibrate_distance_handler(&mut self, msg: CalibratorMessage) {
+        match msg {
             CalibratorMessage::Start(params) => {
+                // Send message to calibrator if it exists
+                if let Some(addr) = &self.calibrator_addr {
+                    addr.do_send(msg);
+                    return;
+                }
+                // Create new calibrator otherwise
                 let calibrator =
                     Calibrator::new(self.drive_data.clone(), self.hc_sr04_data.clone(), params);
-                self.calibrator_addr = Some(calibrator.start());
-                self.calibrator_addr
-                    .as_ref()
-                    .unwrap()
-                    .do_send(CalibratorMessage::Start(params))
+                let addr = calibrator.start();
+                self.calibrator_addr = Some(addr.clone());
+                addr.do_send(msg);
             }
             CalibratorMessage::Stop => {
                 // Stop calibration if calibrator already exists
                 if let Some(addr) = &self.calibrator_addr {
                     addr.do_send(CalibratorMessage::Stop);
+                    self.calibrator_addr = None;
+                }
+            }
+        }
+    }
+
+    fn scanner_handler(&mut self, msg: ScannerMessage) {
+        match msg {
+            ScannerMessage::Start {
+                speed,
+                slip,
+                resolution,
+            } => {
+                // Send message to scanner if it exists
+                if let Some(addr) = &self.scanner_addr {
+                    addr.do_send(msg);
+                    return;
+                }
+                // Create new scanner otherwise
+                let scanner = Scanner::new(
+                    self.drive_data.clone(),
+                    self.hc_sr04_data.clone(),
+                    speed,
+                    slip,
+                    resolution,
+                );
+                let addr = scanner.start();
+                self.scanner_addr = Some(addr.clone());
+                addr.do_send(msg);
+            }
+            ScannerMessage::Stop => {
+                // Stop scanning if scanner already exists
+                if let Some(addr) = &self.scanner_addr {
+                    addr.do_send(ScannerMessage::Stop);
                     self.calibrator_addr = None;
                 }
             }
@@ -130,17 +164,18 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
             }
             // Text message
             Ok(ws::Message::Text(text)) => {
-                let message: SocketMessages =
+                let message: SocketMessage =
                     serde_json::from_str(&text).expect("Failed to deserialize message");
                 match message {
-                    SocketMessages::Move(message) => {
-                        self.motion_handler(message, ctx)
-                    }
-                    SocketMessages::MeasureDistance => {
+                    SocketMessage::Move(message) => self.motion_handler(message, ctx),
+                    SocketMessage::MeasureDistance => {
                         self.measure_distance_handler(ctx);
                     }
-                    SocketMessages::CalibrateMovement(calibrator_msg) => {
-                        self.calibrate_distance_handler(ctx, calibrator_msg);
+                    SocketMessage::CalibrateMovement(calibrator_message) => {
+                        self.calibrate_distance_handler(calibrator_message);
+                    }
+                    SocketMessage::ScanDistance(scanner_message) => {
+                        self.scanner_handler(scanner_message);
                     }
                 };
             }

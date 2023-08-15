@@ -143,6 +143,7 @@ document.getElementById("move-distance").addEventListener("click", () => {
 // Rotate angle
 document.getElementById("rotate-angle").addEventListener("click", () => {
     speed_value = parseFloat(document.getElementById("speed").value) / 100;
+    slip_value = document.getElementById("rotation-slip").value * 0.01;
     const message = {
         message: "Move",
         variant: "Rotate",
@@ -150,7 +151,24 @@ document.getElementById("rotate-angle").addEventListener("click", () => {
         speed: {
             Manual: speed_value,
         },
-        angle: 360.0 * (1 + document.getElementById("rotation-slip").value * 0.01)
+        angle: 360.0 * (1 + slip_value)
+    };
+    const messageJson = JSON.stringify(message);
+    socket.send(messageJson);
+});
+
+// Scan distance
+document.getElementById("scan-distance").addEventListener("click", () => {
+    speed_value = parseFloat(document.getElementById("speed").value) / 100;
+    slip_value = document.getElementById("rotation-slip").value * 0.01;
+    const message = {
+        message: "ScanDistance",
+        variant: "Start",
+        speed: {
+            Manual: speed_value,
+        },
+        slip: slip_value,
+        resolution: 90,
     };
     const messageJson = JSON.stringify(message);
     socket.send(messageJson);

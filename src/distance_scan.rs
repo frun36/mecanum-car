@@ -20,6 +20,8 @@ pub struct Scanner {
     slip: f64,
     resolution: usize,
     start_time: Option<Duration>,
+    time_between_measurements: Duration,
+    measurements: Vec<(f32, f32)>,
 }
 
 impl Scanner {
@@ -37,6 +39,12 @@ impl Scanner {
             slip,
             resolution,
             start_time: None,
+            time_between_measurements: {
+                let distance = 2. * PI * ROBOT_RADIUS * (1. + slip);
+                let time_s = distance / (speed.get_velocity() * resolution as f64);
+                Duration::from_secs_f64(time_s)
+            },
+            measurements: Vec::<(f32, f32)>::new(),
         }
     }
 
@@ -47,25 +55,24 @@ impl Scanner {
         let addr = ctx.address();
         let drive_addr = self.drive_data.lock().unwrap().to_owned();
         let hc_sr04_addr = self.hc_sr04_data.lock().unwrap().to_owned();
-
-        // Compute time between measurements
-        let distance = 2. * PI * ROBOT_RADIUS * (1. + self.slip);
-        let time_s = distance / (self.speed.get_velocity() * resolution as f64);
-        let time = Duration::from_secs_f64(time_s);
+        let time = self.time_between_measurements;
 
         // Define task
         let fut = async move {
+            println!("Started scanning");
             drive_addr.do_send(DriveMessage::Enable {
                 motion: Motion::RightRot,
                 speed,
             });
 
-            for _ in 0..resolution {
-                hc_sr04_addr.do_send(HcSr04Message::Single(Recipient::Scanner(addr.clone())));
+            for i in 0..resolution {
+                println!("{i}");
+                hc_sr04_addr.try_send(HcSr04Message::Single(Recipient::Scanner(addr.clone()))).unwrap_or_else(|e| {println!("{:?}", e)});
                 time::sleep(time).await;
             }
 
-            drive_addr.do_send(DriveMessage::Disable);
+            drive_addr.send(DriveMessage::Disable).await.unwrap_or_else(|e| {println!("{:?}", e)});
+            println!("Finished scanning");
         };
 
         // Run task
@@ -74,7 +81,7 @@ impl Scanner {
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards"),
         );
-        ctx.spawn(wrap_future(fut));
+        ctx.wait(wrap_future(fut));
     }
 }
 
@@ -129,11 +136,14 @@ impl Handler<HcSr04Response> for Scanner {
     fn handle(&mut self, msg: HcSr04Response, _ctx: &mut Self::Context) -> Self::Result {
         match msg {
             HcSr04Response::Ok(measurement) => match measurement {
-                HcSr04Measurement::Single(result) => println!(
-                    "{},{}",
-                    result.time.as_millis() - self.start_time.unwrap().as_millis(),
-                    result.distance
-                ),
+                HcSr04Measurement::Single(result) => {
+                    let time = result.time.as_millis() - self.start_time.unwrap().as_millis();
+                    let distance = result.distance;
+                    let angle = 360. * time as f32
+                        / (self.resolution as u128 * self.time_between_measurements.as_millis())
+                            as f32;
+                    self.measurements.push((angle, distance));
+                }
                 HcSr04Measurement::Multiple(_) => (),
             },
             HcSr04Response::Err(e) => println!("{:?}", e),
