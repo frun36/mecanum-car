@@ -1,6 +1,7 @@
 use actix::prelude::*;
 
 use crate::distance_scan::Scanner;
+use crate::error::Error;
 use crate::movement_calibration::Calibrator;
 use crate::server::WebSocket;
 
@@ -8,7 +9,7 @@ use std::f32::INFINITY;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use rppal::gpio::{Error, Gpio, InputPin, Level, OutputPin, Trigger};
+use rppal::gpio::{Gpio, InputPin, Level, OutputPin, Trigger};
 
 use serde::Serialize;
 

@@ -1,13 +1,13 @@
 use std::{f64::consts::PI, fmt::Display, time::Duration};
 
 use actix_web::rt::time;
-use rppal::gpio::{Error, Gpio};
+use rppal::gpio::Gpio;
 
 use serde::{Deserialize, Serialize};
 
 use actix::{fut::wrap_future, prelude::*};
 
-use crate::{server::WebSocket, Device};
+use crate::{error::Error, server::WebSocket, Device};
 
 mod motor;
 

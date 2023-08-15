@@ -1,4 +1,4 @@
-use rppal::gpio::Error;
+use crate::error::Error;
 use rppal::gpio::Gpio;
 use rppal::gpio::OutputPin;
 

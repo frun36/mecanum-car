@@ -1,25 +1,29 @@
-use std::{io, sync::Mutex};
+use std::sync::Mutex;
 
 use actix::prelude::*;
 
 use actix_files::{Files, NamedFile};
 use actix_web::{
-    get,
+    get, middleware,
     web::{self, Data},
     App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use actix_web_actors::ws;
 
+use log::info;
+
 use rppal::gpio::Gpio;
 
 use drive::Drive;
+use error::Error;
 use hc_sr04::HcSr04;
 use server::WebSocket;
 
+mod distance_scan;
 mod drive;
+mod error;
 mod hc_sr04;
 mod movement_calibration;
-mod distance_scan;
 mod server;
 
 const MOTOR0_FWD: u8 = 4;
@@ -49,6 +53,7 @@ trait Device {
 
 #[get("/")]
 async fn index() -> impl Responder {
+    info!("Sending index file...");
     NamedFile::open_async("static/index.html").await.unwrap()
 }
 
@@ -60,13 +65,35 @@ async fn ws_connect(
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
+    info!("Starting websocket connection...");
     ws::start(WebSocket::new(drive_data, hc_sr04_data), &req, stream)
 }
 
+async fn start_server(
+    drive_data: Data<Mutex<Addr<Drive>>>,
+    hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
+) -> Result<(), Error> {
+    info!("Starting http server...");
+    HttpServer::new(move || {
+        App::new()
+            .app_data(drive_data.clone())
+            .app_data(hc_sr04_data.clone())
+            .service(index)
+            .service(Files::new("/static", "./static").show_files_listing())
+            .service(ws_connect)
+            .wrap(middleware::Logger::default())
+    })
+    .workers(2)
+    .bind(("0.0.0.0", 7878))?
+    .run()
+    .await?;
+    Ok(())
+}
+
 #[actix_web::main]
-async fn main() -> Result<(), io::Error> {
+async fn main() -> Result<(), Error> {
     // Gpio initialization
-    let gpio = Gpio::new().unwrap();
+    let gpio = Gpio::new()?;
 
     // Drive initialization
     let drive = Drive::new(
@@ -79,8 +106,7 @@ async fn main() -> Result<(), io::Error> {
         ],
         MOTOR_PWM_FREQUENCY,
         None,
-    )
-    .unwrap();
+    )?;
     drive.list_motors();
 
     let drive_addr = drive.start();
@@ -88,26 +114,18 @@ async fn main() -> Result<(), io::Error> {
     let drive_data = Data::new(drive_mutex);
 
     // HcSr04 initialization
-    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0).unwrap();
+    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0)?;
 
     // For some reason without this line the distance measurement doesn't work
-    println!("{}", hc_sr04.measure_distance().unwrap().distance);
+    println!("{}", hc_sr04.measure_distance()?.distance);
 
     let hc_sr04_addr = hc_sr04.start();
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
     let hc_sr04_data = Data::new(hc_sr04_mutex);
 
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+    start_server(drive_data, hc_sr04_data).await?;
+    Ok(())
     // Start the server
-    HttpServer::new(move || {
-        App::new()
-            .app_data(drive_data.clone())
-            .app_data(hc_sr04_data.clone())
-            .service(index)
-            .service(Files::new("/static", "./static").show_files_listing())
-            .service(ws_connect)
-    })
-    .workers(2)
-    .bind(("0.0.0.0", 7878))?
-    .run()
-    .await
 }
