@@ -5,6 +5,7 @@ use actix::prelude::*;
 use actix_web::web::Data;
 use actix_web_actors::ws;
 
+use log::error;
 use serde::{Deserialize, Serialize};
 
 use crate::distance_scan::{Scanner, ScannerMessage};
@@ -85,12 +86,12 @@ impl WebSocket {
         Ok(())
     }
 
-    fn calibrate_distance_handler(&mut self, msg: CalibratorMessage) -> Result<(), Error> {
+    fn calibrator_handler(&mut self, msg: CalibratorMessage) -> Result<(), Error> {
         match msg {
             CalibratorMessage::Start(params) => {
                 // Send message to calibrator if it exists
                 if let Some(addr) = &self.calibrator_addr {
-                    addr.do_send(msg);
+                    addr.try_send(msg)?;
                     return Ok(());
                 }
                 // Create new calibrator otherwise
@@ -153,7 +154,7 @@ impl Actor for WebSocket {
     /// Method is called on actor start. We start the heartbeat process here.
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("WebSocket actor started");
-        let drive_addr = self.drive_data.lock().unwrap().to_owned();
+        let drive_addr = self.drive_data.lock().unwrap();
         drive_addr.do_send(AddrMessage(ctx.address()));
         self.hb(ctx);
     }
@@ -179,19 +180,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                 let message: SocketMessage =
                     serde_json::from_str(&text).expect("Failed to deserialize message");
                 match message {
-                    SocketMessage::Move(message) => {
-                        self.motion_handler(message, ctx)
-                    }
-                    SocketMessage::MeasureDistance => {
-                        self.measure_distance_handler(ctx)
-                    }
-                    SocketMessage::CalibrateMovement(calibrator_message) => {
-                        self.calibrate_distance_handler(calibrator_message)
-                    }
-                    SocketMessage::ScanDistance(scanner_message) => {
-                        self.scanner_handler(scanner_message)
-                    }
-                }.unwrap();
+                    SocketMessage::Move(message) => self.motion_handler(message, ctx),
+                    SocketMessage::MeasureDistance => self.measure_distance_handler(ctx),
+                    SocketMessage::CalibrateMovement(message) => self.calibrator_handler(message),
+                    SocketMessage::ScanDistance(message) => self.scanner_handler(message),
+                }
+                .unwrap_or_else(|e| error!("{e}"));
             }
             // Binary message
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
