@@ -1,62 +1,58 @@
 use rppal::gpio;
 use std::{
     fmt::{Display, Formatter, Result},
-    io,
-    sync,
+    io, sync,
 };
 
 #[derive(Debug)]
-pub enum Error {
-    Gpio(gpio::Error),
-    Io(io::Error),
-    ActixWeb(actix_web::Error),
-    PoisonError(String),
-    SendError(String),
+pub struct Error {
+    msg: String,
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            Self::Gpio(error) => write!(f, "GPIO error: {error}"),
-            Self::Io(error) => write!(f, "IO error: {error}"),
-            Self::ActixWeb(error) => write!(f, "Actix Web error: {error}"),
-            Self::PoisonError(error) => write!(f, "Poison error: {error}"),
-            Self::SendError(error) => write!(f, "Send error: {error}"),
-        }
+        write!(f, "{}", self.msg)
     }
 }
 
 impl std::error::Error for Error {}
 
 impl From<gpio::Error> for Error {
-    fn from(error: gpio::Error) -> Self {
-        Self::Gpio(error)
+    fn from(value: gpio::Error) -> Self {
+        Self {
+            msg: value.to_string(),
+        }
     }
 }
 
 impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Self {
-        Self::Io(error)
+    fn from(value: io::Error) -> Self {
+        Self {
+            msg: value.to_string(),
+        }
     }
 }
 
 impl From<actix_web::Error> for Error {
-    fn from(error: actix_web::Error) -> Self {
-        Self::ActixWeb(error)
+    fn from(value: actix_web::Error) -> Self {
+        Self {
+            msg: value.to_string(),
+        }
     }
 }
 
 impl<T> From<sync::PoisonError<T>> for Error {
-    fn from(error: sync::PoisonError<T>) -> Self {
-        Self::PoisonError(format!("{error}"))
+    fn from(value: sync::PoisonError<T>) -> Self {
+        Self {
+            msg: value.to_string(),
+        }
     }
 }
 
 impl<T> From<actix::prelude::SendError<T>> for Error {
-    fn from(error: actix::prelude::SendError<T>) -> Self {
-        Self::SendError(format!("{error}"))
+    fn from(value: actix::prelude::SendError<T>) -> Self {
+        Self {
+            msg: value.to_string(),
+        }
     }
 }
-
-// Not sure if it's safe
-unsafe impl Send for Error {}
