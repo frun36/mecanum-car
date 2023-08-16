@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{io, sync::Mutex};
 
 use actix::prelude::*;
 
@@ -10,18 +10,14 @@ use actix_web::{
 };
 use actix_web_actors::ws;
 
-use log::info;
-
 use rppal::gpio::Gpio;
 
 use drive::Drive;
-use error::Error;
 use hc_sr04::HcSr04;
 use server::WebSocket;
 
 mod distance_scan;
 mod drive;
-mod error;
 mod hc_sr04;
 mod movement_calibration;
 mod server;
@@ -53,7 +49,6 @@ trait Device {
 
 #[get("/")]
 async fn index() -> impl Responder {
-    info!("Sending index file...");
     NamedFile::open_async("static/index.html").await.unwrap()
 }
 
@@ -65,15 +60,13 @@ async fn ws_connect(
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    info!("Starting websocket connection...");
     ws::start(WebSocket::new(drive_data, hc_sr04_data), &req, stream)
 }
 
 async fn start_server(
     drive_data: Data<Mutex<Addr<Drive>>>,
     hc_sr04_data: Data<Mutex<Addr<HcSr04>>>,
-) -> Result<(), Error> {
-    info!("Starting http server...");
+) -> Result<(), io::Error> {
     HttpServer::new(move || {
         App::new()
             .app_data(drive_data.clone())
@@ -91,9 +84,13 @@ async fn start_server(
 }
 
 #[actix_web::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), io::Error> {
+    // Initialize logging
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    log_panics::init();
+
     // Gpio initialization
-    let gpio = Gpio::new()?;
+    let gpio = Gpio::new().expect("Couldn't initialize GPIO");
 
     // Drive initialization
     let drive = Drive::new(
@@ -106,7 +103,7 @@ async fn main() -> Result<(), Error> {
         ],
         MOTOR_PWM_FREQUENCY,
         None,
-    )?;
+    ).expect("Couldn't initialize drive");
     drive.list_motors();
 
     let drive_addr = drive.start();
@@ -114,16 +111,14 @@ async fn main() -> Result<(), Error> {
     let drive_data = Data::new(drive_mutex);
 
     // HcSr04 initialization
-    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0)?;
+    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0).expect("Couldn't initialize HC-SR04");
 
     // For some reason without this line the distance measurement doesn't work
-    println!("{}", hc_sr04.measure_distance()?.distance);
+    println!("{}", hc_sr04.measure_distance().expect("Distance measurement failed").distance);
 
     let hc_sr04_addr = hc_sr04.start();
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
     let hc_sr04_data = Data::new(hc_sr04_mutex);
-
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     start_server(drive_data, hc_sr04_data).await?;
     Ok(())

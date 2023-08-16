@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::distance_scan::{Scanner, ScannerMessage};
 use crate::drive::{Drive, DriveMessage, DriveResponse};
-use crate::error::Error;
 use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response, Recipient};
 use crate::movement_calibration::{Calibrator, CalibratorMessage};
 use crate::Device;
@@ -71,7 +70,7 @@ impl WebSocket {
         &mut self,
         message: DriveMessage,
         _ctx: &mut <WebSocket as Actor>::Context,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Box<dyn std::error::Error + '_>> {
         let drive_addr = self.drive_data.lock()?;
         drive_addr.try_send(message)?;
         Ok(())
@@ -80,13 +79,13 @@ impl WebSocket {
     fn measure_distance_handler(
         &mut self,
         ctx: &mut <Self as Actor>::Context,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Box<dyn std::error::Error + '_>> {
         let hc_sr04_addr = self.hc_sr04_data.lock()?;
         hc_sr04_addr.try_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())))?;
         Ok(())
     }
 
-    fn calibrator_handler(&mut self, msg: CalibratorMessage) -> Result<(), Error> {
+    fn calibrator_handler(&mut self, msg: CalibratorMessage) -> Result<(), Box<dyn std::error::Error>> {
         match msg {
             CalibratorMessage::Start(params) => {
                 // Send message to calibrator if it exists
@@ -112,7 +111,7 @@ impl WebSocket {
         Ok(())
     }
 
-    fn scanner_handler(&mut self, msg: ScannerMessage) -> Result<(), Error> {
+    fn scanner_handler(&mut self, msg: ScannerMessage) -> Result<(), Box<dyn std::error::Error>> {
         match msg {
             ScannerMessage::Start {
                 speed,
