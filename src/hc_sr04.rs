@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use log::{debug, info};
 
 use crate::distance_scan::Scanner;
 use crate::movement_calibration::Calibrator;
@@ -47,7 +48,7 @@ impl HcSr04 {
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
-
+        debug!("performing measurement {}", time.as_millis());
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
         self.trig.set_low();
@@ -58,16 +59,17 @@ impl HcSr04 {
         let instant = Instant::now();
 
         if self.echo.poll_interrupt(false, Some(self.timeout))? != Some(Level::Low) {
+            debug!("performed measurement {}, {}", time.as_millis(), INFINITY);
             return Ok(HcSr04Result {
                 time,
                 distance: INFINITY,
             });
         }
 
-        Ok(HcSr04Result {
-            time,
-            distance: self.sound_speed * instant.elapsed().as_secs_f32() * 0.5,
-        })
+        let distance = self.sound_speed * instant.elapsed().as_secs_f32() * 0.5;
+        debug!("performed measurement {}, {}", time.as_millis(), distance);
+
+        Ok(HcSr04Result { time, distance })
     }
 
     /// Perform `n` distance measurements, return a vector containing them
@@ -77,6 +79,7 @@ impl HcSr04 {
         for _ in 0..n {
             measurements.push(self.measure_distance()?);
         }
+        debug!("performed {n} measurements");
         Ok(measurements)
     }
 }
@@ -88,7 +91,7 @@ impl Actor for HcSr04 {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         ctx.set_mailbox_capacity(1024);
-        println!("HcSr04 actor started");
+        info!("actor started");
     }
 }
 
@@ -110,6 +113,7 @@ impl Handler<HcSr04Message> for HcSr04 {
     type Result = ();
 
     fn handle(&mut self, msg: HcSr04Message, _ctx: &mut Self::Context) -> Self::Result {
+        info!("received {msg:?}");
         let response;
         let recipient;
         match msg {
@@ -129,6 +133,7 @@ impl Handler<HcSr04Message> for HcSr04 {
             }
         };
 
+        info!("sending {response:?} to {recipient:?}");
         match recipient {
             Recipient::WebSocket(addr) => addr.do_send(response),
             Recipient::Calibrator(addr) => addr.do_send(response),
@@ -149,7 +154,7 @@ pub enum HcSr04Measurement {
     Multiple(Vec<HcSr04Result>),
 }
 
-#[derive(Message)]
+#[derive(Debug, Message)]
 #[rtype(result = "()")]
 pub enum HcSr04Response {
     Ok(HcSr04Measurement),
