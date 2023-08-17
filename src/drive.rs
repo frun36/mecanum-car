@@ -139,7 +139,7 @@ impl Drive {
                 }
                 Ok(())
             })?;
-        debug!("Drive: enabled motors with speeds {motor_speeds:?}");
+        debug!("enabled motors with speeds {motor_speeds:?}");
         Ok(())
     }
 
@@ -187,13 +187,13 @@ impl Drive {
         let addr = ctx.address();
         let fut = async move {
             let enable_message = DriveMessage::Enable { motion, speed };
-            info!("Drive: sent {enable_message:?} to drive");
+            info!("sent {enable_message:?} to drive");
             addr.do_send(enable_message);
 
             time::sleep(time).await;
 
             let disable_message = DriveMessage::Disable;
-            info!("Drive: sent {disable_message:?} to drive");
+            info!("sent {disable_message:?} to drive");
             addr.do_send(disable_message);
         };
 
@@ -221,13 +221,13 @@ impl Drive {
         let addr = ctx.address();
         let fut = async move {
             let enable_message = DriveMessage::Enable { motion, speed };
-            info!("Drive: sent {enable_message:?} to drive");
+            info!("sent {enable_message:?} to drive");
             addr.do_send(enable_message);
 
             time::sleep(time).await;
 
             let disable_message = DriveMessage::Disable;
-            info!("Drive: sent {disable_message:?} to drive");
+            info!("sent {disable_message:?} to drive");
             addr.do_send(disable_message);
         };
 
@@ -251,19 +251,20 @@ impl Actor for Drive {
     type Context = Context<Self>;
 
     fn started(&mut self, _ctx: &mut Self::Context) {
-        info!("Drive: Actor started");
+        info!("actor started");
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
         self.enable(Motion::Stop, Speed::Low)
             .expect("Failed to enable motors");
-        info!("Drive: Actor stopped")
+        info!("actor stopped")
     }
 }
 
 impl Device for Drive {
     fn set_websocket_addr(&mut self, addr: Addr<WebSocket>) {
         self.websocket_addr = Some(addr);
+        info!("set WebSocket address");
     }
 }
 
@@ -271,9 +272,8 @@ impl Handler<AddrMessage> for Drive {
     type Result = ();
 
     fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
-        info!("Drive: received {msg:?}");
+        info!("received {msg:?}");
         self.set_websocket_addr(msg.0);
-        info!("Drive: Set WebSocket address");
     }
 }
 
@@ -302,7 +302,7 @@ impl Handler<DriveMessage> for Drive {
     type Result = ();
 
     fn handle(&mut self, msg: DriveMessage, ctx: &mut Self::Context) -> Self::Result {
-        info!("Drive: received {msg:?}");
+        info!("received {msg:?}");
         let response = match msg {
             DriveMessage::Enable { motion, speed } => match self.enable(motion, speed) {
                 Ok(_) => DriveResponse::Ok(msg),
@@ -329,7 +329,7 @@ impl Handler<DriveMessage> for Drive {
                 Err(e) => DriveResponse::Err(e),
             },
         };
-        info!("Drive: sending {response:?} to WebSocket");
+        info!("sending {response:?} to WebSocket");
         self.websocket_addr.as_ref().unwrap().do_send(response);
     }
 }
