@@ -1,13 +1,17 @@
 use std::{f64::consts::PI, fmt::Display, time::Duration};
 
 use actix_web::rt::time;
+use log::{info, debug};
 use rppal::gpio::{Error, Gpio};
 
 use serde::{Deserialize, Serialize};
 
 use actix::{fut::wrap_future, prelude::*};
 
-use crate::{server::WebSocket, Device};
+use crate::{
+    server::{AddrMessage, WebSocket},
+    Device,
+};
 
 mod motor;
 
@@ -135,6 +139,7 @@ impl Drive {
                 }
                 Ok(())
             })?;
+        debug!("Drive: enabled motors with speeds {motor_speeds:?}");
         Ok(())
     }
 
@@ -181,9 +186,15 @@ impl Drive {
         let time = Duration::from_secs_f64(time_s);
         let addr = ctx.address();
         let fut = async move {
-            addr.do_send(DriveMessage::Enable { motion, speed });
+            let enable_message = DriveMessage::Enable { motion, speed };
+            info!("Drive: sent {enable_message:?} to drive");
+            addr.do_send(enable_message);
+
             time::sleep(time).await;
-            addr.do_send(DriveMessage::Disable);
+
+            let disable_message = DriveMessage::Disable;
+            info!("Drive: sent {disable_message:?} to drive");
+            addr.do_send(disable_message);
         };
 
         ctx.spawn(wrap_future(fut));
@@ -209,11 +220,17 @@ impl Drive {
         let time = Duration::from_secs_f64(time_s);
         let addr = ctx.address();
         let fut = async move {
-            addr.do_send(DriveMessage::Enable { motion, speed });
+            let enable_message = DriveMessage::Enable { motion, speed };
+            info!("Drive: sent {enable_message:?} to drive");
+            addr.do_send(enable_message);
+
             time::sleep(time).await;
-            addr.do_send(DriveMessage::Disable);
+
+            let disable_message = DriveMessage::Disable;
+            info!("Drive: sent {disable_message:?} to drive");
+            addr.do_send(disable_message);
         };
-        
+
         ctx.spawn(wrap_future(fut));
         Ok(())
     }
@@ -234,17 +251,29 @@ impl Actor for Drive {
     type Context = Context<Self>;
 
     fn started(&mut self, _ctx: &mut Self::Context) {
-        println!("Drive actor started");
+        info!("Drive: Actor started");
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
-        self.enable(Motion::Stop, Speed::Low).unwrap();
+        self.enable(Motion::Stop, Speed::Low)
+            .expect("Failed to enable motors");
+        info!("Drive: Actor stopped")
     }
 }
 
 impl Device for Drive {
     fn set_websocket_addr(&mut self, addr: Addr<WebSocket>) {
         self.websocket_addr = Some(addr);
+    }
+}
+
+impl Handler<AddrMessage> for Drive {
+    type Result = ();
+
+    fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
+        info!("Drive: received {msg:?}");
+        self.set_websocket_addr(msg.0);
+        info!("Drive: Set WebSocket address");
     }
 }
 
@@ -273,6 +302,7 @@ impl Handler<DriveMessage> for Drive {
     type Result = ();
 
     fn handle(&mut self, msg: DriveMessage, ctx: &mut Self::Context) -> Self::Result {
+        info!("Drive: received {msg:?}");
         let response = match msg {
             DriveMessage::Enable { motion, speed } => match self.enable(motion, speed) {
                 Ok(_) => DriveResponse::Ok(msg),
@@ -299,12 +329,12 @@ impl Handler<DriveMessage> for Drive {
                 Err(e) => DriveResponse::Err(e),
             },
         };
-
+        info!("Drive: sending {response:?} to WebSocket");
         self.websocket_addr.as_ref().unwrap().do_send(response);
     }
 }
 
-#[derive(Message)]
+#[derive(Debug, Message)]
 #[rtype(result = "()")]
 pub enum DriveResponse {
     Ok(DriveMessage),

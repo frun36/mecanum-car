@@ -12,7 +12,6 @@ use crate::distance_scan::{Scanner, ScannerMessage};
 use crate::drive::{Drive, DriveMessage, DriveResponse};
 use crate::hc_sr04::{HcSr04, HcSr04Measurement, HcSr04Message, HcSr04Response, Recipient};
 use crate::movement_calibration::{Calibrator, CalibratorMessage};
-use crate::Device;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -220,18 +219,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
 }
 
 // Send address to device actors
-#[derive(Message)]
+#[derive(Debug, Message)]
 #[rtype(result = "()")]
-pub struct AddrMessage(Addr<WebSocket>);
-
-impl Handler<AddrMessage> for Drive {
-    type Result = ();
-
-    fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
-        self.set_websocket_addr(msg.0);
-        info!("Set WebSocket address for Drive");
-    }
-}
+pub struct AddrMessage(pub Addr<WebSocket>);
 
 // Device actor response handling
 
