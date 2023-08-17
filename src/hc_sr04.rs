@@ -92,13 +92,14 @@ impl Actor for HcSr04 {
     }
 }
 
+#[derive(Debug)]
 pub enum Recipient {
     WebSocket(Addr<WebSocket>),
     Calibrator(Addr<Calibrator>),
     Scanner(Addr<Scanner>),
 }
 
-#[derive(Message)]
+#[derive(Debug, Message)]
 #[rtype(result = "()")]
 pub enum HcSr04Message {
     Single(Recipient),

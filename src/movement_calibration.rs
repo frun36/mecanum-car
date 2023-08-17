@@ -12,7 +12,7 @@ use std::io::Write;
 use std::sync::Mutex;
 use std::time::Duration;
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 pub struct CalibratorParams {
     min_duty_cycle: f64,
     max_duty_cycle: f64,
@@ -93,7 +93,7 @@ impl Actor for Calibrator {
     }
 }
 
-#[derive(Deserialize, Message)]
+#[derive(Debug, Deserialize, Message)]
 #[rtype(result = "()")]
 #[serde(tag = "variant")]
 pub enum CalibratorMessage {

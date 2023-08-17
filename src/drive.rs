@@ -248,7 +248,7 @@ impl Device for Drive {
     }
 }
 
-#[derive(Deserialize, Message)]
+#[derive(Debug, Deserialize, Message)]
 #[rtype(result = "()")]
 #[serde(tag = "variant")]
 pub enum DriveMessage {

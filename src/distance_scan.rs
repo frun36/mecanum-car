@@ -67,11 +67,16 @@ impl Scanner {
 
             for i in 0..resolution {
                 println!("{i}");
-                hc_sr04_addr.try_send(HcSr04Message::Single(Recipient::Scanner(addr.clone()))).unwrap_or_else(|e| {println!("{:?}", e)});
+                hc_sr04_addr
+                    .try_send(HcSr04Message::Single(Recipient::Scanner(addr.clone())))
+                    .unwrap_or_else(|e| println!("{:?}", e));
                 time::sleep(time).await;
             }
 
-            drive_addr.send(DriveMessage::Disable).await.unwrap_or_else(|e| {println!("{:?}", e)});
+            drive_addr
+                .send(DriveMessage::Disable)
+                .await
+                .unwrap_or_else(|e| println!("{:?}", e));
             println!("Finished scanning");
         };
 
@@ -98,7 +103,7 @@ impl Actor for Scanner {
     }
 }
 
-#[derive(Message, Deserialize)]
+#[derive(Message, Debug, Deserialize)]
 #[serde(tag = "variant")]
 #[rtype(result = "()")]
 pub enum ScannerMessage {

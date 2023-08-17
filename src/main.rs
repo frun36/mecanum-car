@@ -120,7 +120,7 @@ async fn main() -> Result<(), io::Error> {
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
     let hc_sr04_data = Data::new(hc_sr04_mutex);
 
+    // Start the server
     start_server(drive_data, hc_sr04_data).await?;
     Ok(())
-    // Start the server
 }

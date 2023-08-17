@@ -5,7 +5,7 @@ use actix::prelude::*;
 use actix_web::web::Data;
 use actix_web_actors::ws;
 
-use log::error;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use crate::distance_scan::{Scanner, ScannerMessage};
@@ -57,11 +57,12 @@ impl WebSocket {
             // check client heartbeats
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
                 // heartbeat timed out
-                println!("Websocket Client heartbeat failed, disconnecting!");
+                error!("WebSocket Client heartbeat failed, disconnecting");
                 ctx.stop();
                 return;
             }
 
+            info!("WebSocket: Sending heartbeat message to client");
             ctx.ping(b"");
         });
     }
@@ -72,6 +73,7 @@ impl WebSocket {
         _ctx: &mut <WebSocket as Actor>::Context,
     ) -> Result<(), Box<dyn std::error::Error + '_>> {
         let drive_addr = self.drive_data.lock()?;
+        info!("WebSocket: Sending {message:?} to drive");
         drive_addr.try_send(message)?;
         Ok(())
     }
@@ -81,15 +83,21 @@ impl WebSocket {
         ctx: &mut <Self as Actor>::Context,
     ) -> Result<(), Box<dyn std::error::Error + '_>> {
         let hc_sr04_addr = self.hc_sr04_data.lock()?;
-        hc_sr04_addr.try_send(HcSr04Message::Single(Recipient::WebSocket(ctx.address())))?;
+        let message = HcSr04Message::Single(Recipient::WebSocket(ctx.address()));
+        info!("WebSocket: Sending {message:?} to HC-SR04");
+        hc_sr04_addr.try_send(message)?;
         Ok(())
     }
 
-    fn calibrator_handler(&mut self, msg: CalibratorMessage) -> Result<(), Box<dyn std::error::Error>> {
+    fn calibrator_handler(
+        &mut self,
+        msg: CalibratorMessage,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         match msg {
             CalibratorMessage::Start(params) => {
                 // Send message to calibrator if it exists
                 if let Some(addr) = &self.calibrator_addr {
+                    info!("WebSocket: Sending {msg:?} to calibrator");
                     addr.try_send(msg)?;
                     return Ok(());
                 }
@@ -98,11 +106,13 @@ impl WebSocket {
                     Calibrator::new(self.drive_data.clone(), self.hc_sr04_data.clone(), params);
                 let addr = calibrator.start();
                 self.calibrator_addr = Some(addr.clone());
+                info!("WebSocket: Created calibrator, sending {msg:?} to calibrator");
                 addr.try_send(msg)?;
             }
             CalibratorMessage::Stop => {
                 // Stop calibration if calibrator already exists
                 if let Some(addr) = &self.calibrator_addr {
+                    info!("WebSocket: Sending {msg:?} to calibrator");
                     addr.try_send(CalibratorMessage::Stop)?;
                     self.calibrator_addr = None;
                 }
@@ -120,6 +130,7 @@ impl WebSocket {
             } => {
                 // Send message to scanner if it exists
                 if let Some(addr) = &self.scanner_addr {
+                    info!("WebSocket: Sending {msg:?} to scanner");
                     addr.try_send(msg)?;
                     return Ok(());
                 }
@@ -133,11 +144,13 @@ impl WebSocket {
                 );
                 let addr = scanner.start();
                 self.scanner_addr = Some(addr.clone());
+                info!("WebSocket: Created scanner, sending {msg:?} to scanner");
                 addr.try_send(msg)?;
             }
             ScannerMessage::Stop => {
                 // Stop scanning if scanner already exists
                 if let Some(addr) = &self.scanner_addr {
+                    info!("WebSocket: Sending {msg:?} to scanner");
                     addr.try_send(ScannerMessage::Stop)?;
                     self.calibrator_addr = None;
                 }
@@ -152,10 +165,18 @@ impl Actor for WebSocket {
 
     /// Method is called on actor start. We start the heartbeat process here.
     fn started(&mut self, ctx: &mut Self::Context) {
-        println!("WebSocket actor started");
-        let drive_addr = self.drive_data.lock().unwrap();
+        info!("WebSocket: Actor started");
+        let drive_addr = self
+            .drive_data
+            .lock()
+            .expect("Failed to acquire lock on drive");
+        info!("WebSocket: sending address to drive");
         drive_addr.do_send(AddrMessage(ctx.address()));
         self.hb(ctx);
+    }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        info!("WebSocket: Actor stopped");
     }
 }
 
@@ -163,7 +184,7 @@ impl Actor for WebSocket {
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         // Process websocket message
-        println!("WS: {msg:?}");
+        info!("WebSocket: Received {msg:?}");
         match msg {
             // Respond to pings with pong
             Ok(ws::Message::Ping(msg)) => {
@@ -184,7 +205,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebSocket {
                     SocketMessage::CalibrateMovement(message) => self.calibrator_handler(message),
                     SocketMessage::ScanDistance(message) => self.scanner_handler(message),
                 }
-                .unwrap_or_else(|e| error!("{e}"));
+                .unwrap_or_else(|e| error!("{e:?}"));
             }
             // Binary message
             Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
@@ -208,7 +229,7 @@ impl Handler<AddrMessage> for Drive {
 
     fn handle(&mut self, msg: AddrMessage, _ctx: &mut Self::Context) -> Self::Result {
         self.set_websocket_addr(msg.0);
-        println!("Set WebSocket address for Drive");
+        info!("Set WebSocket address for Drive");
     }
 }
 
@@ -239,7 +260,9 @@ impl Handler<DriveResponse> for WebSocket {
                 DriveResponse::Err(e) => format!("Drive error: {:?}", e),
             },
         })
-        .unwrap();
+        .expect("Failed to serialize message");
+
+        info!("WebSocket: sending {response} to client");
         ctx.text(response);
     }
 }
@@ -258,10 +281,11 @@ impl Handler<HcSr04Response> for WebSocket {
                     }
                 },
             })
-            .unwrap(),
+            .expect("Failed to serialize message"),
             HcSr04Response::Err(e) => format!("HcSr04 error: {:?}", e),
         };
         // Send the response back to the WebSocket client
+        info!("WebSocket: sending {response} to client");
         ctx.text(response);
     }
 }
