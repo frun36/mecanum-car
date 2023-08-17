@@ -87,6 +87,7 @@ impl Scanner {
                 .expect("Time went backwards"),
         );
         ctx.wait(wrap_future(fut));
+        println!("{:?}", self.measurements);
     }
 }
 

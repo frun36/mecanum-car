@@ -168,7 +168,7 @@ document.getElementById("scan-distance").addEventListener("click", () => {
             Manual: speed_value,
         },
         slip: slip_value,
-        resolution: 90,
+        resolution: 20,
     };
     const messageJson = JSON.stringify(message);
     socket.send(messageJson);

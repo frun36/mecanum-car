@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use log::{debug, info};
+use log::{debug, info, error};
 
 use crate::distance_scan::Scanner;
 use crate::movement_calibration::Calibrator;
@@ -26,14 +26,14 @@ impl HcSr04 {
         const SOUND_SPEED_INCR: f32 = 0.606; // (m/s)/*C
         const MAX_RANGE: f32 = 4.; // m
         let sound_speed: f32 = SOUND_SPEED_0C + temperature * SOUND_SPEED_INCR;
-        let timeout = Duration::from_secs_f32(MAX_RANGE / sound_speed * 2.);
+        let timeout = Duration::from_secs_f32((MAX_RANGE / sound_speed) * 2.5);
         (sound_speed, timeout)
     }
 
     pub fn new(gpio: &Gpio, trig_pin: u8, echo_pin: u8, temperature: f32) -> Result<Self, Error> {
         let (sound_speed, timeout) = Self::calculate_parameters(temperature);
         let mut echo = gpio.get(echo_pin)?.into_input_pulldown();
-        echo.set_interrupt(Trigger::Both)?;
+        echo.set_interrupt(Trigger::FallingEdge)?;
 
         Ok(Self {
             trig: gpio.get(trig_pin)?.into_output_low(),
@@ -49,13 +49,12 @@ impl HcSr04 {
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
         debug!("performing measurement {}", time.as_millis());
+
+        // Send signal
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
         self.trig.set_low();
 
-        while self.echo.poll_interrupt(false, None)? != Some(Level::High) {
-            // println!("Mysterious first loop")
-        }
         let instant = Instant::now();
 
         if self.echo.poll_interrupt(false, Some(self.timeout))? != Some(Level::Low) {

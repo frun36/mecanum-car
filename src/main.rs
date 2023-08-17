@@ -103,7 +103,8 @@ async fn main() -> Result<(), io::Error> {
         ],
         MOTOR_PWM_FREQUENCY,
         None,
-    ).expect("Couldn't initialize drive");
+    )
+    .expect("Couldn't initialize drive");
     drive.list_motors();
 
     let drive_addr = drive.start();
@@ -111,10 +112,17 @@ async fn main() -> Result<(), io::Error> {
     let drive_data = Data::new(drive_mutex);
 
     // HcSr04 initialization
-    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0).expect("Couldn't initialize HC-SR04");
+    let mut hc_sr04 = HcSr04::new(&gpio, DISTANCE_SENSOR_TRIG, DISTANCE_SENSOR_ECHO, 25.0)
+        .expect("Couldn't initialize HC-SR04");
 
     // For some reason without this line the distance measurement doesn't work
-    println!("{}", hc_sr04.measure_distance().expect("Distance measurement failed").distance);
+    println!(
+        "{}",
+        hc_sr04
+            .measure_distance()
+            .expect("Distance measurement failed")
+            .distance
+    );
 
     let hc_sr04_addr = hc_sr04.start();
     let hc_sr04_mutex = Mutex::new(hc_sr04_addr);
