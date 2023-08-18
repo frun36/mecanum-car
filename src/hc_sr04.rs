@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use log::{debug, info, error};
+use log::{debug, info};
 
 use crate::distance_scan::Scanner;
 use crate::movement_calibration::Calibrator;
@@ -33,7 +33,7 @@ impl HcSr04 {
     pub fn new(gpio: &Gpio, trig_pin: u8, echo_pin: u8, temperature: f32) -> Result<Self, Error> {
         let (sound_speed, timeout) = Self::calculate_parameters(temperature);
         let mut echo = gpio.get(echo_pin)?.into_input_pulldown();
-        echo.set_interrupt(Trigger::FallingEdge)?;
+        echo.set_interrupt(Trigger::Both)?;
 
         Ok(Self {
             trig: gpio.get(trig_pin)?.into_output_low(),
@@ -45,26 +45,60 @@ impl HcSr04 {
 
     /// Perform a single distance measurement
     pub fn measure_distance(&mut self) -> Result<HcSr04Result, Error> {
+        // Wait for end of potential previous echo pulse
+        if self.echo.is_high() {
+            debug!("Waiting for echo reset");
+            if self
+                .echo
+                .poll_interrupt(true, Some(Duration::from_millis(250)))?
+                != Some(Level::Low)
+            {
+                panic!("HcSr04 echo pin blocked");
+            }
+        }
+
+        // Reset trig pin, make sure enough time passed before next measurement
+        self.trig.set_low();
+        thread::sleep(Duration::from_millis(10));
+
+        // Set measurement time
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
         debug!("performing measurement {}", time.as_millis());
 
-        // Send signal
+        // Send trig signal
         self.trig.set_high();
         thread::sleep(Duration::from_micros(10));
         self.trig.set_low();
 
-        let instant = Instant::now();
-
-        if self.echo.poll_interrupt(false, Some(self.timeout))? != Some(Level::Low) {
-            debug!("performed measurement {}, {}", time.as_millis(), INFINITY);
+        // Wait for start of echo pulse
+        if self
+            .echo
+            .poll_interrupt(false, Some(Duration::from_millis(250)))?
+            != Some(Level::High)
+        {
+            // Return if echo wasn't started before timeout
             return Ok(HcSr04Result {
                 time,
                 distance: INFINITY,
             });
         }
 
+        // Echo pulse start
+        let instant = Instant::now();
+
+        // Wait for echo pulse end
+        if self.echo.poll_interrupt(false, Some(self.timeout))? != Some(Level::Low) {
+            debug!("performed measurement {}, {}", time.as_millis(), INFINITY);
+            // Return if pulse hasn't finished before timeout
+            return Ok(HcSr04Result {
+                time,
+                distance: INFINITY,
+            });
+        }
+
+        // Compute measured distance
         let distance = self.sound_speed * instant.elapsed().as_secs_f32() * 0.5;
         debug!("performed measurement {}, {}", time.as_millis(), distance);
 
