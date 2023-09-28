@@ -43,4 +43,5 @@ I have some ideas for additional features when I have some time to implement the
 * Enabling more advanced movements using the motion calibration data
 * Mapping a room with LIDAR-like distance scanning
 * Adding a camera
+
 For now, hovewer, I don't think I will have much time to improve the project as the academic year is starting.
